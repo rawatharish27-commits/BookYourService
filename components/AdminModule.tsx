@@ -1,49 +1,42 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
-import { Booking, Problem, BookingStatus, LedgerEntry, UserRole, UserEntity, AuditLogEntity } from '../types';
+import React, { useState } from 'react';
 import { db } from '../DatabaseService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { UserRole, VerificationStatus, User } from '../types';
 
-interface AdminModuleProps {
-  bookings: Booking[];
-  problems: Problem[];
-}
+const AdminModule: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'verify' | 'fraud' | 'logs'>('verify');
+  
+  const users = db.getUsers();
+  const bookings = db.getBookings();
+  const pending = users.filter(u => u.role === UserRole.PROVIDER && u.verificationStatus !== VerificationStatus.ACTIVE);
+  const auditLogs = db.getAuditLogs().slice().reverse();
 
-const AdminModule: React.FC<AdminModuleProps> = ({ bookings, problems }) => {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'settlement' | 'security' | 'users'>('analytics');
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
-  const [users, setUsers] = useState<UserEntity[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntity[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLedger(await db.getLedger());
-      setUsers(await db.getUsers());
-      setAuditLogs(await db.getLogs());
-    };
-    fetchData();
-  }, [activeTab]);
-
-  const securityThreats = useMemo(() => {
-    return auditLogs.filter(l => l.severity === 'ERROR' || l.severity === 'CRITICAL');
-  }, [auditLogs]);
+  const handleApprove = async (provider: User) => {
+    provider.verificationStatus = VerificationStatus.ACTIVE;
+    await db.upsertUser(provider);
+    await db.logAction('ADMIN_ROOT', 'VERIFY_PROVIDER', 'User', provider.id, { status: 'ACTIVE' });
+    alert(`${provider.name} is now ACTIVE`);
+  };
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-20">
-      <div className="bg-[#0A2540] p-10 rounded-[3rem] text-white flex flex-col md:flex-row justify-between items-center gap-6 shadow-3xl">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-[#00D4FF] rounded-2xl flex items-center justify-center text-[#0A2540] text-3xl font-black shadow-lg">M</div>
-          <div>
-            <h2 className="text-3xl font-black tracking-tighter uppercase leading-none">Marketplace Controller</h2>
-            <p className="text-blue-200 text-[10px] font-black uppercase tracking-widest mt-2">Enterprise Security Node Active</p>
+    <div className="max-w-6xl mx-auto space-y-12 animate-fadeIn pb-24">
+      {/* Governance Banner */}
+      <div className="bg-[#0A2540] p-16 rounded-[5rem] text-white shadow-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-12">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 opacity-10 blur-[150px] rounded-full"></div>
+        <div className="relative z-10 space-y-4">
+          <h2 className="text-5xl font-black tracking-tighter uppercase leading-none">Enterprise<br/>Controller</h2>
+          <div className="flex gap-2">
+            <span className="bg-white/10 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-blue-300">Live Node Analytics</span>
+            <span className="bg-emerald-500/10 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-400">System Healthy</span>
           </div>
         </div>
-        <div className="flex gap-4 bg-white/5 p-1.5 rounded-2xl border border-white/10">
-          {['analytics', 'settlement', 'security', 'users'].map(tab => (
+        
+        <div className="relative z-10 flex bg-white/5 p-3 rounded-[2.5rem] border border-white/10">
+          {['verify', 'fraud', 'logs'].map(tab => (
             <button 
               key={tab} 
               onClick={() => setActiveTab(tab as any)}
-              className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-[#00D4FF] text-[#0A2540] shadow-lg' : 'text-gray-400 hover:text-white'}`}
+              className={`px-10 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white text-[#0A2540] shadow-xl' : 'text-slate-400 hover:text-white'}`}
             >
               {tab}
             </button>
@@ -51,77 +44,89 @@ const AdminModule: React.FC<AdminModuleProps> = ({ bookings, problems }) => {
         </div>
       </div>
 
-      {activeTab === 'security' && (
-        <div className="space-y-8 animate-fadeIn">
-          {/* Image 1: Risks & Blindspots Monitoring */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-red-50">
-               <div className="flex justify-between items-center mb-4">
-                  <span className="text-red-500 text-2xl">🚨</span>
-                  <span className="text-[10px] font-black text-red-500 uppercase">Critical Threats</span>
-               </div>
-               <p className="text-4xl font-black text-[#0A2540]">{securityThreats.length}</p>
-               <p className="text-[9px] font-bold text-gray-400 uppercase mt-2">Active Intrusion Attempts</p>
-            </div>
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
-               <div className="flex justify-between items-center mb-4">
-                  <span className="text-blue-500 text-2xl">🔒</span>
-                  <span className="text-[10px] font-black text-blue-500 uppercase">JWT Sessions</span>
-               </div>
-               <p className="text-4xl font-black text-[#0A2540]">{users.length}</p>
-               <p className="text-[9px] font-bold text-gray-400 uppercase mt-2">Active Verified Tokens</p>
-            </div>
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-green-50">
-               <div className="flex justify-between items-center mb-4">
-                  <span className="text-green-500 text-2xl">🛡️</span>
-                  <span className="text-[10px] font-black text-green-500 uppercase">Lateral Breach Protection</span>
-               </div>
-               <p className="text-4xl font-black text-[#0A2540]">Active</p>
-               <p className="text-[9px] font-bold text-gray-400 uppercase mt-2">RBAC Nodes Synced</p>
-            </div>
+      {activeTab === 'verify' && (
+        <div className="bg-white p-12 rounded-[4rem] shadow-sm border border-slate-100 space-y-10">
+          <div className="flex justify-between items-center">
+            <h3 className="text-2xl font-black text-[#0A2540] tracking-tighter uppercase">Provider Queue ({pending.length})</h3>
           </div>
-
-          <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100">
-             <h3 className="text-xl font-black text-[#0A2540] uppercase mb-8">Live Threat Feed (Image 1)</h3>
-             <div className="space-y-4">
-                {securityThreats.length === 0 ? (
-                  <div className="py-20 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">No Active API Threats Detected</div>
-                ) : (
-                  securityThreats.map(log => (
-                    <div key={log.id} className="p-6 bg-red-50 border border-red-100 rounded-3xl flex justify-between items-center animate-pulse">
-                       <div>
-                          <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">{log.severity} ATTACK DETECTED</p>
-                          <h4 className="font-black text-[#0A2540] uppercase text-sm">{log.action}</h4>
-                          <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase">Node: {log.entity} • User: {log.user_id}</p>
-                       </div>
-                       <button className="bg-red-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase">Neutralize</button>
+          <div className="divide-y divide-slate-50">
+            {pending.length === 0 ? (
+              <p className="py-20 text-center text-slate-400 font-bold">All partners verified.</p>
+            ) : (
+              pending.map(p => (
+                <div key={p.id} className="py-10 flex justify-between items-center group">
+                  <div className="flex gap-8 items-center">
+                    <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-3xl shadow-inner group-hover:bg-blue-50 transition-colors">👨‍🔧</div>
+                    <div>
+                      <h4 className="text-2xl font-black text-[#0A2540] tracking-tight">{p.name}</h4>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Status: {p.verificationStatus} • Aadhaar: {p.kycDetails?.aadhaarNumber || 'PENDING'}</p>
                     </div>
-                  ))
-                )}
-             </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => handleApprove(p)}
+                      className="bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-emerald-600 transition-all"
+                    >
+                      Approve
+                    </button>
+                    <button className="bg-slate-50 text-slate-400 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 hover:text-rose-500 transition-all">Reject</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8">Revenue Growth (Daily)</h3>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[]}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-                  <Tooltip />
-                  <Bar dataKey="amount" fill="#0A2540" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+      {activeTab === 'fraud' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white p-12 rounded-[4rem] border border-slate-100 shadow-sm space-y-10">
+            <h3 className="text-xl font-black text-[#0A2540] uppercase tracking-tighter">Risk Assessment Heatmap</h3>
+            <div className="space-y-6">
+              {users.filter(u => u.fraudScore > 0).sort((a,b) => b.fraudScore - a.fraudScore).map(u => (
+                <div key={u.id} className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex justify-between items-center">
+                  <div>
+                    <p className="font-black text-[#0A2540] uppercase text-xs">{u.name}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{u.role} NODE</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-3xl font-black ${u.fraudScore > 70 ? 'text-rose-500' : 'text-amber-500'}`}>{u.fraudScore}%</p>
+                    <p className="text-[9px] font-black text-slate-300 uppercase">Fraud Probability</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100">
-             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8 text-center">Service Mix</h3>
-             {/* Chart placeholder */}
+          
+          <div className="bg-[#0A2540] p-12 rounded-[4rem] text-white space-y-10 flex flex-col justify-center text-center">
+            <p className="text-blue-300 text-[10px] font-black uppercase tracking-[0.4em]">Total Marketplace Volume</p>
+            <h4 className="text-7xl font-black tracking-tighter italic">₹{bookings.reduce((sum, b) => sum + (b.total || 0), 0)}</h4>
+            <div className="pt-10">
+              <span className="bg-white/10 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400">₹{db.getLedger().filter(l => l.category === 'PLATFORM_FEE').reduce((sum, l) => sum + l.amount, 0)} Realized Profit</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'logs' && (
+        <div className="bg-white p-12 rounded-[4rem] shadow-sm border border-slate-100 overflow-hidden">
+          <h3 className="text-xl font-black text-[#0A2540] uppercase tracking-tighter mb-10">Immutable Audit Trail</h3>
+          <div className="max-h-[600px] overflow-y-auto space-y-4 pr-6 custom-scrollbar">
+            {auditLogs.map(log => (
+              <div key={log.id} className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-blue-200 transition-all">
+                <div className="flex gap-8 items-center">
+                  <span className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-[10px] text-slate-400 border border-slate-100">#{log.id.slice(-4)}</span>
+                  <div>
+                    <p className="font-black text-[#0A2540] uppercase text-xs tracking-widest">{log.action}</p>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Entity: {log.entity} | Actor: {log.actorId.slice(-6)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-[#0A2540] text-sm">{new Date(log.timestamp).toLocaleTimeString()}</p>
+                  <p className="text-[9px] font-black text-slate-300 uppercase">{new Date(log.timestamp).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

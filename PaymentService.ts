@@ -54,7 +54,7 @@ class PaymentService {
       status: BookingStatus.CANCELLED
     });
 
-    await db.audit('SYSTEM', 'REFUND_PROCESSED', 'Payment', { bookingId, amount: req.total_amount });
+    await db.audit('SYSTEM', 'REFUND_PROCESSED', 'Payment', { bookingId, amount: req.total_amount || req.total });
     return true;
   }
 }

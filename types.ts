@@ -2,71 +2,52 @@
 export enum UserRole {
   USER = 'USER',
   PROVIDER = 'PROVIDER',
-  ADMIN = 'ADMIN',
-  GOVT = 'GOVT',
-  B2B = 'B2B'
+  ADMIN = 'ADMIN'
+}
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  PENDING_OTP = 'PENDING_OTP'
+}
+
+export enum ProviderStatus {
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE',
+  BUSY = 'BUSY',
+  BANNED = 'BANNED'
 }
 
 export enum VerificationStatus {
-  UNVERIFIED = 'UNVERIFIED',
-  OTP_VERIFIED = 'OTP_VERIFIED',
-  PENDING_ID = 'PENDING_ID',
-  ID_VERIFIED = 'ID_VERIFIED',
-  BANK_VERIFIED = 'BANK_VERIFIED',
+  REGISTERED = 'REGISTERED',
+  KYC_PENDING = 'KYC_PENDING',
+  BANK_PENDING = 'BANK_PENDING',
+  ADMIN_APPROVED = 'ADMIN_APPROVED',
   ACTIVE = 'ACTIVE',
-  REJECTED = 'REJECTED',
-  PROBATION = 'PROBATION'
+  REJECTED = 'REJECTED'
 }
 
 export enum BookingStatus {
   CREATED = 'CREATED',
   VERIFIED = 'VERIFIED',
   ASSIGNED = 'ASSIGNED',
+  ACCEPTED = 'ACCEPTED',
   IN_PROGRESS = 'IN_PROGRESS',
-  ON_HOLD = 'ON_HOLD',
   COMPLETED = 'COMPLETED',
+  PAID = 'PAID',
   CLOSED = 'CLOSED',
-  CANCELLED = 'CANCELLED',
-  FLAGGED = 'FLAGGED',
-  ESCALATED = 'ESCALATED',
-  DISPUTED = 'DISPUTED'
+  CANCELLED = 'CANCELLED'
 }
 
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  FAILURE = 'FAILURE',
-  REFUNDED = 'REFUNDED'
+export enum LedgerType {
+  CREDIT = 'CREDIT',
+  DEBIT = 'DEBIT'
 }
 
-// Fix missing SLATier export
 export enum SLATier {
   BRONZE = 'BRONZE',
   SILVER = 'SILVER',
   GOLD = 'GOLD'
-}
-
-// Fix missing PaymentMethod export
-export enum PaymentMethod {
-  UPI = 'UPI',
-  CARD = 'CARD',
-  COD = 'COD'
-}
-
-// Fix missing RiskLevel export
-export enum RiskLevel {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL'
-}
-
-// Fix missing FraudType export
-export enum FraudType {
-  MULTI_ACCOUNT_SAME_ID = 'MULTI_ACCOUNT_SAME_ID',
-  DEVICE_COLLISION = 'DEVICE_COLLISION',
-  HIGH_CANCELLATION = 'HIGH_CANCELLATION',
-  PRICE_TAMPERING = 'PRICE_TAMPERING'
 }
 
 export interface Addon {
@@ -75,7 +56,6 @@ export interface Addon {
   price: number;
 }
 
-// Fix missing RatingEntry export
 export interface RatingEntry {
   stars: number;
   timestamp: string;
@@ -83,125 +63,91 @@ export interface RatingEntry {
   tags?: string[];
 }
 
-// Fix missing Category export
-export interface Category {
+/** 
+ * Prisma Model: User
+ */
+export interface User {
   id: string;
+  phone: string;
   name: string;
-  icon: string;
-  providerType: string;
-}
-
-// Fix missing SOPItem export
-export interface SOPItem {
-  id: string;
-  title: string;
-  category: string;
-  content: string;
-  steps: string[];
-}
-
-// Fix missing AIRiskAssessment export
-export interface AIRiskAssessment {
-  score: number;
-  level: RiskLevel;
-  factors: string[];
-  predicted_delay_prob: number;
-}
-
-// Fix missing ProviderRank export
-export interface ProviderRank {
-  score: number;
-  tier: 'PREMIER' | 'STANDARD' | 'RESTRICTED';
-  reasons: string[];
-  lastCalculated: string;
-}
-
-// Fix missing FraudSignal export
-export interface FraudSignal {
-  id: string;
-  providerId: string;
-  type: FraudType;
-  severity: number;
-  description: string;
-  evidence: any;
+  role: UserRole;
+  status: UserStatus;
+  verificationStatus: VerificationStatus;
+  city: string;
+  state_code?: string;
+  walletBalance: number;
   createdAt: string;
+  kycDetails?: {
+    aadhaarNumber?: string;
+    panNumber?: string;
+    bankAccountNumber?: string;
+    documentsUploaded: boolean;
+  };
+  fraudScore: number;
+  rank?: number;
+}
+
+export type UserEntity = User;
+
+/** 
+ * Prisma Model: Booking
+ */
+export interface Booking {
+  id: string;
+  userId: string;
+  userName?: string;
+  providerId?: string;
+  serviceId: string;
+  problemTitle: string;
+  category?: string;
+  subCategory?: string;
+  status: BookingStatus;
+  priority?: string;
+  state_code?: string;
+  ward_id?: string;
+  created_at?: string;
+  createdAt: string;
+  total_amount?: number;
+  total?: number;
+  visitCharge?: number;
+  basePrice: number;
+  maxPrice: number;
+  platformFee?: number;
+  providerEarnings?: number;
+  selectedAddons?: any[];
+  addons: Addon[];
+  address?: string;
+  ontologyId?: string;
+  slaTier?: SLATier;
+  severity?: number;
+  scheduledTime?: string;
+  city: string;
+  rating?: number;
+  payment_status?: PaymentStatus;
+  payment_method?: PaymentMethod;
 }
 
 /** 
- * Image 2: Marketplace Charging & Settlement Node
+ * Prisma Model: WalletLedger (Append-only)
  */
-export interface LedgerEntry {
+export interface WalletLedger {
   id: string;
-  timestamp: string;
-  type: 'CREDIT' | 'DEBIT';
+  userId: string;
+  bookingId: string;
   amount: number;
-  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'TAX' | 'REFUND';
-  referenceId: string;
+  type: LedgerType;
+  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'REFUND';
+  timestamp: string;
+}
+
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  action: string;
+  entity: string;
+  entityId: string;
   metadata?: any;
-}
-
-export interface Booking extends ServiceRequestEntity {
-  userName: string;
-  problemTitle: string;
-  category: string;
-  subCategory: string;
-  basePrice: number;
-  selectedAddons: Addon[];
-  visitCharge: number;
-  platformFee: number;
-  providerEarnings: number;
-  // Inherited from ServiceRequestEntity but used in filters
-  ontologyId: string;
-  slaTier: SLATier;
-  severity: number;
-  scheduledTime?: string;
-}
-
-export interface ServiceRequestEntity {
-  id: string;
-  user_id: string;
-  service_id: string;
-  provider_id?: string;
-  status: BookingStatus;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  state_code: string;
-  ward_id: string;
-  created_at: string;
-  total_amount: number;
-  payment_method?: PaymentMethod;
-  payment_status?: PaymentStatus;
-  engineerName?: string;
-  etaMins?: number;
-  rating?: number;
-  complaint?: string;
-  completion_timestamp?: string;
-  isSlaBreached?: boolean;
-  commission_deducted?: boolean;
-  selectedAddons?: Addon[];
-  // Fix missing address and sla_deadline
-  address: string;
-  sla_deadline?: string;
-}
-
-export interface UserEntity {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role_id: UserRole;
-  state_code: string;
-  is_active: boolean;
-  wallet_balance: number;
-  trust_score: number;
-  created_at: string;
-  verification_status: VerificationStatus;
-  kyc_data?: any;
-  deviceId?: string;
-  last_ip?: string;
-  completed_jobs_count?: number;
-  // Fix missing legal_consent_accepted and rating_history
-  legal_consent_accepted?: boolean;
-  rating_history?: RatingEntry[];
+  timestamp: string;
 }
 
 export interface Problem {
@@ -220,13 +166,37 @@ export interface Problem {
   isEnabled: boolean;
 }
 
-export interface AuditLogEntity {
+export interface Category {
   id: string;
-  user_id: string;
-  action: string;
-  entity: string;
-  timestamp: string;
-  ip_address: string;
-  metadata?: string;
-  severity: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  name: string;
+  icon: string;
+  providerType: string;
 }
+
+export interface SOPItem {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  steps: string[];
+}
+
+export enum PaymentMethod {
+  UPI = 'UPI',
+  COD = 'COD',
+  CARD = 'CARD'
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILURE = 'FAILURE',
+  REFUNDED = 'REFUNDED'
+}
+
+export interface AuditLogEntity {
+  severity: 'INFO' | 'WARNING' | 'ERROR';
+}
+
+export type FraudSignal = any;
+export type FraudType = any;

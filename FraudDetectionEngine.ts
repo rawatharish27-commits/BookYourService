@@ -1,81 +1,47 @@
 
-import { UserEntity, FraudSignal, FraudType, Booking, Problem, BookingStatus } from './types';
+import { User, Booking, BookingStatus } from './types';
+import { db } from './DatabaseService';
 
 class FraudDetectionEngine {
   
-  analyze(provider: UserEntity, allUsers: UserEntity[], bookings: Booking[], problems: Problem[]): FraudSignal[] {
-    const signals: FraudSignal[] = [];
-
-    // STORY 7.1 — Identity & Device Collision
-    if (provider.kyc_data?.aadhaarNumber) {
-      const sameAadhaar = allUsers.filter(u => 
-        u.id !== provider.id && 
-        u.kyc_data?.aadhaarNumber === provider.kyc_data?.aadhaarNumber
-      );
-      if (sameAadhaar.length > 0) {
-        signals.push(this.createSignal(provider.id, FraudType.MULTI_ACCOUNT_SAME_ID, 5, 'Duplicate Aadhaar mapped to multiple accounts.', { collisions: sameAadhaar.map(u => u.id) }));
-      }
-    }
-
-    if (provider.deviceId) {
-      const sameDevice = allUsers.filter(u => u.id !== provider.id && u.deviceId === provider.deviceId);
-      if (sameDevice.length >= 2) {
-        signals.push(this.createSignal(provider.id, FraudType.DEVICE_COLLISION, 4, 'Hardware fingerprint shared across multiple identities.', { deviceId: provider.deviceId }));
-      }
-    }
-
-    // STORY 7.1 — Cancellation Abuse Detection
-    const providerBookings = bookings.filter(b => b.provider_id === provider.id);
-    const last10 = providerBookings.slice(0, 10);
-    const cancellationCount = last10.filter(b => b.status === BookingStatus.CANCELLED).length;
-    
-    if (cancellationCount >= 4) {
-      signals.push(this.createSignal(provider.id, FraudType.HIGH_CANCELLATION, 4, 'Abnormal cancellation velocity (hoarding detected).', { rate: '40%+' }));
-    }
-
-    // STORY 7.1 — Price Tampering
-    const tamperingAttempt = providerBookings.find(b => {
-      const template = problems.find(p => p.ontologyId === b.ontologyId);
-      return template && b.total_amount > (template.maxPrice + 200); // Buffer for valid addons
-    });
-    if (tamperingAttempt) {
-      signals.push(this.createSignal(provider.id, FraudType.PRICE_TAMPERING, 5, 'Attempted bill manipulation beyond ontology limits.', { bookingId: tamperingAttempt.id }));
-    }
-
-    return signals;
-  }
-
-  private createSignal(providerId: string, type: FraudType, severity: number, description: string, evidence: any): FraudSignal {
-    return {
-      id: `SIG_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      providerId,
-      type,
-      severity,
-      description,
-      evidence,
-      createdAt: new Date().toISOString()
-    };
-  }
-
   /**
-   * STORY 7.2 — ML Fraud Scoring Feature Pipeline
+   * Story 12: On booking completed, recalculate fraud score
    */
-  calculateRiskScore(providerId: string, allUsers: UserEntity[], signals: FraudSignal[], bookings: Booking[]): number {
-    let score = 0;
-    
-    // Feature 1: Signal Accumulation
-    const providerSignals = signals.filter(s => s.providerId === providerId);
-    score += providerSignals.reduce((acc, s) => acc + (s.severity * 15), 0);
+  async calculateFraudScore(userId: string): Promise<number> {
+    const bookings = db.getBookings().filter(b => b.providerId === userId);
+    if (bookings.length === 0) return 0;
 
-    // Feature 2: Reliability decay
-    const providerBookings = bookings.filter(b => b.provider_id === providerId);
-    if (providerBookings.length > 0) {
-       const completionRate = providerBookings.filter(b => b.status === BookingStatus.COMPLETED).length / providerBookings.length;
-       if (completionRate < 0.6) score += 20;
+    let score = 0;
+
+    // 1. Price Tampering Check (Booking Total > MaxPrice is already blocked by BillingService, 
+    // but here we check for multiple close-to-max attempts)
+    const tightMaxPrices = bookings.filter(b => b.total && b.total >= b.maxPrice * 0.95).length;
+    score += tightMaxPrices * 10;
+
+    // 2. High Cancellation Velocity
+    const cancellations = bookings.filter(b => b.status === BookingStatus.CANCELLED).length;
+    score += (cancellations / bookings.length) * 100;
+
+    // 3. Duplicate Payout Attempts (Metadata check in ledger)
+    const ledger = db.getLedger().filter(l => l.userId === userId && l.category === 'SERVICE_PAYOUT');
+    const duplicateCheck = new Set(ledger.map(l => l.bookingId)).size !== ledger.length;
+    if (duplicateCheck) score += 50;
+
+    const finalScore = Math.min(100, Math.round(score));
+    
+    // Update User Score
+    const users = db.getUsers();
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      user.fraudScore = finalScore;
+      if (finalScore > 80) {
+        user.status = 'SUSPENDED' as any;
+        await db.logAction('SYSTEM', 'FRAUD_SUSPENSION', 'User', userId, { score: finalScore });
+      }
+      db.save();
     }
 
-    // Cap at 100
-    return Math.min(score, 100);
+    return finalScore;
   }
 }
 

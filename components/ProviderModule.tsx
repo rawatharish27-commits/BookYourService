@@ -1,146 +1,206 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Booking, BookingStatus, Problem, UserEntity, LedgerEntry, VerificationStatus, Addon } from '../types';
-import { PLATFORM_FEE, VISIT_CHARGE } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { Booking, User, VerificationStatus, BookingStatus } from '../types';
 import { db } from '../DatabaseService';
+import { bookingService } from '../BookingService';
 
 interface ProviderModuleProps {
-  bookings: Booking[];
   providerId: string;
-  onUpdateBooking: (id: string, updates: Partial<Booking>) => void;
-  problems: Problem[];
 }
 
-const ProviderModule: React.FC<ProviderModuleProps> = ({ bookings, providerId, onUpdateBooking, problems }) => {
-  const [activeTab, setActiveTab] = useState<'leads' | 'active' | 'accounts'>('leads');
-  const [providerUser, setProviderUser] = useState<UserEntity | null>(null);
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+const ProviderModule: React.FC<ProviderModuleProps> = ({ providerId }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState<'leads' | 'active' | 'wallet'>('leads');
+  const [kycForm, setKycForm] = useState({ aadhaar: '', pan: '', bank: '' });
   
-  // Real-time notification simulation (Image 1 - SNS/Socket)
-  const [newLeadAlert, setNewLeadAlert] = useState<Booking | null>(null);
+  const allBookings = db.getBookings();
+  const userObj = db.getUsers().find(x => x.id === providerId);
 
   useEffect(() => {
-    const fetchMeta = async () => {
-      const users = await db.getUsers();
-      const user = users.find(u => u.id === providerId);
-      if (user) {
-        setProviderUser(user);
-        const allLedger = await db.getLedger();
-        setLedger(allLedger.filter(l => l.metadata?.providerId === providerId));
-      }
+    if (userObj) setUser(userObj);
+  }, [userObj]);
+
+  const handleKycSubmit = async () => {
+    if (!user) return;
+    const updated = {
+      ...user,
+      verificationStatus: VerificationStatus.KYC_PENDING,
+      kycDetails: { ...kycForm, documentsUploaded: true }
     };
-    fetchMeta();
+    await db.upsertUser(updated);
+    await db.logAction(user.id, 'SUBMIT_KYC', 'User', user.id);
+    setUser(updated);
+  };
 
-    // Image 1 Socket Simulation: Check for new leads every 10s
-    const socketSim = setInterval(() => {
-      const availableLeads = bookings.filter(b => b.status === BookingStatus.CREATED && !b.provider_id);
-      if (availableLeads.length > 0 && Math.random() > 0.7) {
-        setNewLeadAlert(availableLeads[0]);
-        // Auto-hide alert after 5s
-        setTimeout(() => setNewLeadAlert(null), 5000);
-      }
-    }, 10000);
+  const leads = allBookings.filter(b => b.status === BookingStatus.CREATED);
+  const myJobs = allBookings.filter(b => b.providerId === providerId);
+  const walletHistory = db.getLedger().filter(l => l.userId === providerId);
 
-    return () => clearInterval(socketSim);
-  }, [providerId, bookings]);
+  // If not active, show KYC flow
+  if (user?.verificationStatus !== VerificationStatus.ACTIVE) {
+    return (
+      <div className="max-w-xl mx-auto space-y-12 py-10 animate-fadeIn">
+        <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-slate-100 space-y-10">
+          <div className="text-center space-y-4">
+            <div className="w-24 h-24 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🛠️</div>
+            <h2 className="text-3xl font-black text-[#0A2540] tracking-tighter">Onboarding Node</h2>
+            <p className="text-sm text-slate-400 px-10">Current Status: <b className="text-[#0A2540] uppercase">{user?.verificationStatus}</b></p>
+          </div>
 
-  const myLeads = useMemo(() => bookings.filter(b => b.status === BookingStatus.CREATED), [bookings]);
-  const myActive = useMemo(() => bookings.filter(b => b.provider_id === providerId && b.status !== BookingStatus.COMPLETED), [bookings, providerId]);
-
-  return (
-    <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto pb-20">
-      {/* SNS / Real-time Notification Overlay (Image 1) */}
-      {newLeadAlert && (
-        <div className="fixed top-24 right-8 z-[100] animate-slideUp">
-          <div className="bg-[#0A2540] text-white p-6 rounded-[2rem] shadow-3xl border border-white/10 flex items-center gap-6 max-w-sm">
-            <div className="w-12 h-12 bg-[#00D4FF] rounded-2xl flex items-center justify-center text-2xl">⚡</div>
-            <div>
-              <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Incoming Socket Event</p>
-              <h4 className="font-black text-sm uppercase">{newLeadAlert.problemTitle}</h4>
-              <button onClick={() => { setActiveTab('leads'); setNewLeadAlert(null); }} className="mt-3 text-[9px] font-black text-[#00D4FF] uppercase underline">View Leads</button>
+          <div className="space-y-6">
+            <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2">Aadhaar Number</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-white border border-slate-200 p-5 rounded-3xl font-black text-lg outline-none focus:border-blue-500 transition-all" 
+                  placeholder="0000 0000 0000"
+                  value={kycForm.aadhaar}
+                  onChange={e => setKycForm({...kycForm, aadhaar: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2">PAN Number</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-white border border-slate-200 p-5 rounded-3xl font-black text-lg outline-none focus:border-blue-500 transition-all" 
+                  placeholder="ABCDE1234F"
+                  value={kycForm.pan}
+                  onChange={e => setKycForm({...kycForm, pan: e.target.value})}
+                />
+              </div>
             </div>
-            <button onClick={() => setNewLeadAlert(null)} className="text-white/20 hover:text-white">✕</button>
+            
+            <button 
+              onClick={handleKycSubmit}
+              className="w-full bg-[#0A2540] text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all"
+            >
+              Submit KYC for Review
+            </button>
           </div>
         </div>
-      )}
-
-      {/* Provider Header with Ledger Link (Image 2) */}
-      <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-10">
-         <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl shadow-sm">👨‍🔧</div>
-            <div>
-               <h2 className="text-3xl font-black text-[#0A2540] tracking-tighter leading-none">{providerUser?.name}</h2>
-               <div className="flex items-center gap-3 mt-3">
-                  <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Verification: ACTIVE</span>
-                  <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Jobs: {providerUser?.completed_jobs_count || 0}</span>
-               </div>
-            </div>
-         </div>
-         <div className="flex gap-4">
-            <div className="bg-[#0A2540] p-6 rounded-[2rem] text-center min-w-[140px] shadow-xl shadow-blue-900/10">
-               <p className="text-[9px] font-black text-blue-200 uppercase mb-1">In-App Wallet</p>
-               <p className="text-2xl font-black text-white">₹{providerUser?.wallet_balance}</p>
-            </div>
-         </div>
       </div>
+    );
+  }
 
-      <div className="flex bg-white rounded-3xl p-1.5 border border-gray-100 shadow-sm">
-        {['leads', 'active', 'accounts'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 py-4 font-black text-[10px] uppercase rounded-2xl transition-all ${activeTab === tab ? 'bg-[#0A2540] text-white shadow-xl' : 'text-gray-400'}`}>
-            {tab} {tab === 'leads' ? `(${myLeads.length})` : ''}
-          </button>
-        ))}
+  return (
+    <div className="space-y-12 animate-fadeIn max-w-5xl mx-auto pb-24">
+      {/* Wallet Header */}
+      <div className="bg-[#0A2540] p-12 rounded-[4rem] text-white flex justify-between items-center shadow-3xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400 opacity-10 blur-[100px] rounded-full"></div>
+        <div className="relative z-10">
+          <p className="text-blue-300 text-[10px] font-black uppercase tracking-[0.3em]">Partner Wallet</p>
+          <h2 className="text-6xl font-black tracking-tighter mt-2">₹{user?.walletBalance}</h2>
+        </div>
+        <div className="relative z-10 flex gap-4">
+          <button onClick={() => setActiveTab('leads')} className={`px-8 py-4 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'leads' ? 'bg-[#00D4FF] text-[#0A2540]' : 'bg-white/10 text-white'}`}>Leads ({leads.length})</button>
+          <button onClick={() => setActiveTab('active')} className={`px-8 py-4 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'active' ? 'bg-[#00D4FF] text-[#0A2540]' : 'bg-white/10 text-white'}`}>Jobs</button>
+          <button onClick={() => setActiveTab('wallet')} className={`px-8 py-4 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'wallet' ? 'bg-[#00D4FF] text-[#0A2540]' : 'bg-white/10 text-white'}`}>Wallet</button>
+        </div>
       </div>
 
       {activeTab === 'leads' && (
-        <div className="space-y-6 animate-fadeIn">
-          {myLeads.map(lead => (
-            <div key={lead.id} className="bg-white p-8 rounded-[3rem] border border-gray-100 flex justify-between items-center hover:border-blue-200 transition-all">
-              <div className="flex-1">
-                 <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">{lead.category}</span>
-                 <h3 className="text-2xl font-black text-[#0A2540] mt-2">{lead.problemTitle}</h3>
-                 <p className="text-xs font-bold text-gray-400 mt-1 uppercase">SLA Target: 60 Mins • Ward: {lead.ward_id}</p>
-              </div>
-              <button onClick={() => onUpdateBooking(lead.id, { provider_id: providerId, status: BookingStatus.VERIFIED })} className="bg-[#0A2540] text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Claim Job</button>
+        <div className="grid gap-6">
+          {leads.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-[4rem] border border-slate-100">
+              <p className="text-slate-400 font-bold">No leads in your area right now.</p>
             </div>
-          ))}
+          ) : (
+            leads.map(lead => (
+              <div key={lead.id} className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex justify-between items-center hover:scale-[1.01] transition-transform">
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">{lead.city}</span>
+                    <span className="bg-blue-50 text-blue-500 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">{lead.category}</span>
+                  </div>
+                  <h3 className="text-3xl font-black text-[#0A2540] tracking-tighter">{lead.problemTitle}</h3>
+                  <p className="text-xs font-bold text-slate-400">Guaranteed Minimum Payout: ₹{lead.basePrice - 10}</p>
+                </div>
+                <button 
+                  onClick={() => bookingService.transition(lead.id, BookingStatus.ASSIGNED, { providerId })}
+                  className="bg-[#0A2540] text-white px-12 py-6 rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 transition-colors"
+                >
+                  Accept Lead
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {activeTab === 'active' && (
-        <div className="space-y-8 animate-fadeIn">
-          {myActive.map(job => (
-            <div key={job.id} className="bg-[#0A2540] p-10 rounded-[3.5rem] text-white flex flex-col md:flex-row justify-between items-center gap-6 shadow-2xl">
-               <div className="flex-1">
-                  <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest">In-Progress Contract</p>
-                  <h3 className="text-3xl font-black mt-2 tracking-tighter uppercase">{job.problemTitle}</h3>
-                  <div className="flex items-center gap-4 mt-4 text-xs font-bold text-blue-100/50">
-                    <span>👤 {job.userName}</span>
-                    <span>📍 {job.address.slice(0, 20)}...</span>
-                  </div>
-               </div>
-               <button onClick={() => onUpdateBooking(job.id, { status: BookingStatus.COMPLETED })} className="bg-[#00D4FF] text-[#0A2540] px-12 py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Complete & Payout</button>
+        <div className="space-y-6">
+          {myJobs.filter(j => j.status !== BookingStatus.CLOSED).map(job => (
+            <div key={job.id} className="bg-white p-12 rounded-[4rem] border-2 border-slate-100 shadow-sm space-y-10">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-blue-500 text-[10px] font-black uppercase tracking-widest border border-blue-100 px-4 py-1.5 rounded-full">{job.status}</span>
+                  <h3 className="text-4xl font-black text-[#0A2540] tracking-tighter mt-4">{job.problemTitle}</h3>
+                </div>
+                {job.status === BookingStatus.ASSIGNED && (
+                  <button 
+                    onClick={() => bookingService.transition(job.id, BookingStatus.ACCEPTED)}
+                    className="bg-emerald-500 text-white px-10 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                  >
+                    Mark Arrived
+                  </button>
+                )}
+                {job.status === BookingStatus.ACCEPTED && (
+                  <button 
+                    onClick={() => bookingService.transition(job.id, BookingStatus.IN_PROGRESS)}
+                    className="bg-blue-500 text-white px-10 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                  >
+                    Start Work
+                  </button>
+                )}
+                {job.status === BookingStatus.IN_PROGRESS && (
+                  <button 
+                    onClick={() => bookingService.transition(job.id, BookingStatus.COMPLETED)}
+                    className="bg-[#0A2540] text-white px-10 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                  >
+                    Finish & Bill
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-8 border-t border-slate-50 pt-10">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Client Name</p>
+                  <p className="font-black text-[#0A2540]">{job.userName || 'Customer Node'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Location</p>
+                  <p className="font-black text-[#0A2540]">{job.city} Center Hub</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {activeTab === 'accounts' && (
-        <div className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-sm animate-fadeIn">
-          <h3 className="text-xl font-black text-[#0A2540] uppercase mb-8">Service Settlement History</h3>
+      {activeTab === 'wallet' && (
+        <div className="bg-white rounded-[4rem] p-12 border border-slate-100 shadow-sm space-y-8">
+          <h3 className="text-xl font-black text-[#0A2540] uppercase tracking-tighter">Settlement History</h3>
           <div className="space-y-4">
-             {ledger.map(entry => (
-                <div key={entry.id} className="p-6 bg-gray-50 rounded-3xl flex justify-between items-center border border-gray-100">
-                   <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{new Date(entry.timestamp).toLocaleString()}</p>
-                      <p className="text-sm font-black text-[#0A2540] uppercase">Settlement #{entry.referenceId.slice(-6)}</p>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-lg font-black text-green-600">+₹{entry.amount}</p>
-                      <span className="text-[8px] font-black text-gray-400 uppercase">Released to Bank ✓</span>
-                   </div>
+            {walletHistory.reverse().map(l => (
+              <div key={l.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex justify-between items-center">
+                <div className="flex gap-6 items-center">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${l.type === 'CREDIT' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                    {l.type === 'CREDIT' ? '↓' : '↑'}
+                  </div>
+                  <div>
+                    <p className="font-black text-[#0A2540] uppercase text-xs">{l.category}</p>
+                    <p className="text-[10px] font-bold text-slate-400">Ref: {l.bookingId}</p>
+                  </div>
                 </div>
-             ))}
+                <div className="text-right">
+                  <p className={`text-xl font-black ${l.type === 'CREDIT' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {l.type === 'CREDIT' ? '+' : '-'}₹{l.amount}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-300 uppercase">{new Date(l.timestamp).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
