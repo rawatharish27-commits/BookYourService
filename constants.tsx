@@ -1,8 +1,24 @@
 
-import { Category, Problem, SLATier, StateConfig, PSUTypeConfig, ProblemCategoryCoverage, WeeklyChecklist, RiskLevel, Addon, SOPItem, ExpansionChecklist, RegionConfig } from './types';
+import { Category, Problem, SLATier, StateConfig, PSUTypeConfig, ProblemCategoryCoverage, WeeklyChecklist, RiskLevel, Addon, SOPItem, ExpansionChecklist, RegionConfig, ThreatModelEntry, SecurityControl } from './types';
 
 export const PLATFORM_FEE = 10;
 export const VISIT_CHARGE = 100;
+
+export const THREAT_MODEL: ThreatModelEntry[] = [
+  { stride: 'S', category: 'Customer App', threat: 'Fake User Registration', mitigation: 'Mandatory OTP + Device Fingerprinting', status: 'MITIGATED' },
+  { stride: 'T', category: 'Provider App', threat: 'Bill Price Tampering', mitigation: 'Server-side Max Price Lock & Validation', status: 'MITIGATED' },
+  { stride: 'R', category: 'Admin Panel', threat: 'Unauthorized Config Changes', mitigation: 'Immutable Action Logs & Dual Approvals', status: 'MONITORED' },
+  { stride: 'I', category: 'KYC Storage', threat: 'Data Leak of ID Docs', mitigation: 'AES-256 Encryption & Masked Previews', status: 'MITIGATED' },
+  { stride: 'D', category: 'Backend API', threat: 'OTP/SMS Flood Attack', mitigation: 'Hyperlocal Rate Limiting & Cooldowns', status: 'MITIGATED' },
+  { stride: 'E', category: 'RBAC', threat: 'Provider Escalating to Admin', mitigation: 'Strict Middleware JWT Role Verification', status: 'MITIGATED' }
+];
+
+export const SECURITY_CONTROLS: SecurityControl[] = [
+  { id: 'SC01', area: 'AUTH', label: '2FA for Admins', description: 'Requires second factor for all admin dashboard logins.', status: 'ENABLED' },
+  { id: 'SC02', area: 'PII', label: 'Aadhaar Masking', description: 'Masks first 8 digits of Aadhaar on all admin views.', status: 'ENABLED' },
+  { id: 'SC03', area: 'INFRA', label: 'IP Allowlist', description: 'Restricts admin access to corporate VPN IP ranges.', status: 'PENDING' },
+  { id: 'SC04', area: 'BILLING', label: 'Fraud Detection Node', description: 'Automated flags for abnormal payment/cancellation velocity.', status: 'ENABLED' }
+];
 
 export const REGIONS: RegionConfig[] = [
   { id: 'IN', name: 'India', currency: '₹', platformFee: 10, taxRate: 18, timezone: 'IST', status: 'ACTIVE', infraCostPerBooking: 2.5 },
@@ -148,6 +164,18 @@ export const SOP_LIST: SOPItem[] = [
       'Verify service completion status and payment proof (UPI/COD).',
       'For UPI failures, initiate automated refund via Payment Gateway Node.',
       'For poor quality, offer free re-service or platform credit via Wallet Module.'
+    ]
+  },
+  {
+    id: 'SOP_006',
+    title: 'Security Incident - Admin Breach',
+    category: 'Safety',
+    content: 'Protocol for suspected unauthorized admin dashboard access.',
+    steps: [
+      'Freeze all admin credentials globally via Security Node.',
+      'Run STRIDE audit on affected entity activity.',
+      'Mandatory 2FA refresh for all HQ nodes.',
+      'Rotate Bootstrap Secret env variables.'
     ]
   }
 ];

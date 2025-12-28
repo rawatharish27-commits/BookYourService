@@ -5,7 +5,7 @@ import { ai } from './AIIntelligenceService';
 import { generateProblems, REGIONS } from './constants';
 
 class DatabaseService {
-  private readonly STORAGE_KEY = 'DOORSTEP_PRO_V7_DB';
+  private readonly STORAGE_KEY = 'DOORSTEP_PRO_V8_DB';
 
   private db: {
     users: UserEntity[];
@@ -53,19 +53,19 @@ class DatabaseService {
     }
   }
 
-  async processWebhook(vendor: VendorWebhook['vendor'], payload: any) {
-    const externalRefId = payload.reference_id || `REF_${Date.now()}`;
-    if (this.db.webhooks.find(w => w.externalRefId === externalRefId && w.status === WebhookStatus.SUCCESS)) { return { status: 'ALREADY_PROCESSED' }; }
-    const webhook: VendorWebhook = { id: `WH_${Date.now()}`, vendor, eventType: payload.event || 'GENERIC_CALLBACK', externalRefId, payload, status: WebhookStatus.RECEIVED, retryCount: 0, createdAt: new Date().toISOString() };
-    this.db.webhooks.unshift(webhook);
-    try {
-      webhook.status = WebhookStatus.PROCESSING;
-      if (vendor === 'IDFY' && payload.result === 'SUCCESS') await this.verifyProvider(payload.provider_id, VerificationStatus.ID_VERIFIED, "OCR Confirmed");
-      webhook.status = WebhookStatus.SUCCESS;
-      webhook.processedAt = new Date().toISOString();
-    } catch (e) { webhook.status = WebhookStatus.FAILED; webhook.retryCount++; }
+  async audit(user_id: string, action: string, entity: string, metadata: any = {}, severity: AuditLogEntity['severity'] = 'INFO') {
+    const log: AuditLogEntity = { 
+      id: `LOG_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
+      user_id, 
+      action, 
+      entity, 
+      timestamp: new Date().toISOString(), 
+      ip_address: '127.0.0.1', 
+      metadata: JSON.stringify(metadata), 
+      severity 
+    };
+    this.db.auditLogs.unshift(log);
     this.save();
-    return { status: webhook.status };
   }
 
   async runIntelligenceSync(providerId: string) {
@@ -89,9 +89,88 @@ class DatabaseService {
 
     provider.rank = ai.calculateProviderRank(providerId, enrichedBookings, mlFraudScore.score);
     const action = fraudEngine.getAutomatedAction(this.db.fraudSignals.filter(s => s.providerId === providerId));
-    if (action === 'BAN' || action === 'SUSPEND') provider.status = action === 'BAN' ? 'BANNED' : 'SUSPENDED';
+    if (action === 'BAN' || action === 'SUSPEND') {
+      provider.status = action === 'BAN' ? 'BANNED' : 'SUSPENDED';
+      await this.audit('SYSTEM', `PROVIDER_${action}`, 'Provider', { providerId, score: mlFraudScore.score }, 'ERROR');
+    }
     
     this.save();
+  }
+
+  async createUser(user: Partial<UserEntity>): Promise<UserEntity> {
+    const newUser: UserEntity = { 
+      id: `U_${Date.now()}`, 
+      name: user.name || 'Anonymous', 
+      email: user.email || '', 
+      phone: user.phone || '', 
+      role_id: user.role_id || UserRole.USER, 
+      state_code: user.state_code || 'UP', 
+      is_active: true, 
+      wallet_balance: 0, 
+      trust_score: 100, 
+      created_at: new Date().toISOString(), 
+      status: user.status || 'ACTIVE', 
+      verification_status: user.verification_status || VerificationStatus.UNVERIFIED, 
+      kyc_data: user.kyc_data || {}, 
+      deviceId: `DEV_${Math.random().toString(36).substr(2, 9)}`, 
+      region_id: user.region_id || 'IN' 
+    };
+    this.db.users.push(newUser);
+    if (newUser.role_id === UserRole.PROVIDER) this.db.provider_wallets[newUser.id] = 0;
+    
+    await this.audit(newUser.id, 'USER_CREATED', 'User', { role: newUser.role_id });
+    this.save();
+    return newUser;
+  }
+
+  // Added updateUser method to resolve the error where updateUser was missing on DatabaseService.
+  async updateUser(id: string, updates: Partial<UserEntity>): Promise<void> {
+    const index = this.db.users.findIndex(u => u.id === id);
+    if (index !== -1) {
+      this.db.users[index] = { ...this.db.users[index], ...updates };
+      this.save();
+    }
+  }
+
+  async verifyOTP(userId: string): Promise<void> {
+    const index = this.db.users.findIndex(u => u.id === userId);
+    if (index !== -1) { 
+      this.db.users[index].verification_status = VerificationStatus.OTP_VERIFIED; 
+      await this.audit(userId, 'OTP_VERIFIED', 'User');
+      this.save(); 
+    }
+  }
+
+  async submitKYC(userId: string, data: KYCData): Promise<void> {
+    const index = this.db.users.findIndex(u => u.id === userId);
+    if (index !== -1) { 
+      this.db.users[index].kyc_data = { ...this.db.users[index].kyc_data, ...data, submittedAt: new Date().toISOString() }; 
+      this.db.users[index].verification_status = VerificationStatus.PENDING_ID; 
+      await this.audit(userId, 'KYC_SUBMITTED', 'User', { fields: Object.keys(data) });
+      this.save(); 
+    }
+  }
+
+  async verifyBankUPI(userId: string, data: { bankAccount?: string, upiId?: string }): Promise<void> {
+    const index = this.db.users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+      const user = this.db.users[index];
+      if (user.kyc_data) { user.kyc_data.bankAccount = data.bankAccount; user.kyc_data.upiId = data.upiId; }
+      user.verification_status = VerificationStatus.BANK_VERIFIED;
+      await this.audit(userId, 'BANK_LINKED', 'User');
+      this.save();
+      await this.runIntelligenceSync(userId);
+    }
+  }
+
+  async approveProvider(adminId: string, providerId: string): Promise<void> {
+    const index = this.db.users.findIndex(u => u.id === providerId);
+    if (index !== -1) { 
+      this.db.users[index].verification_status = VerificationStatus.ACTIVE; 
+      this.db.users[index].status = 'ACTIVE';
+      await this.audit(adminId, 'PROVIDER_APPROVED', 'Admin', { target: providerId });
+      this.save(); 
+    }
   }
 
   async createAlert(type: SystemAlert['type'], message: string, severity: RiskLevel) {
@@ -101,58 +180,22 @@ class DatabaseService {
     return alert;
   }
 
-  async resolveAlert(id: string) {
-    const idx = this.db.systemAlerts.findIndex(a => a.id === id);
-    if (idx !== -1) { this.db.systemAlerts[idx].resolved = true; this.save(); }
-  }
-
-  async audit(user_id: string, action: string, entity: string, metadata: any = {}, severity: AuditLogEntity['severity'] = 'INFO') {
-    const log: AuditLogEntity = { id: `LOG_${Date.now()}`, user_id, action, entity, timestamp: new Date().toISOString(), ip_address: '127.0.0.1', metadata: JSON.stringify(metadata), severity };
-    this.db.auditLogs.unshift(log);
-    this.save();
-  }
-
-  async createUser(user: Partial<UserEntity>): Promise<UserEntity> {
-    const newUser: UserEntity = { id: `U_${Date.now()}`, name: user.name || 'Anonymous', email: user.email || '', phone: user.phone || '', role_id: user.role_id || UserRole.USER, state_code: user.state_code || 'UP', is_active: true, wallet_balance: 0, trust_score: 100, created_at: new Date().toISOString(), status: 'ACTIVE', verification_status: user.verification_status || VerificationStatus.UNVERIFIED, kyc_data: user.kyc_data || {}, deviceId: `DEV_${Math.random().toString(36).substr(2, 9)}`, region_id: 'IN' };
-    this.db.users.push(newUser);
-    if (newUser.role_id === UserRole.PROVIDER) this.db.provider_wallets[newUser.id] = 0;
-    this.save();
-    return newUser;
-  }
-
-  async verifyOTP(userId: string): Promise<void> {
-    const index = this.db.users.findIndex(u => u.id === userId);
-    if (index !== -1) { this.db.users[index].verification_status = VerificationStatus.OTP_VERIFIED; this.save(); }
-  }
-
-  async updateUser(id: string, updates: Partial<UserEntity>): Promise<void> {
-    const index = this.db.users.findIndex(u => u.id === id);
-    if (index !== -1) { this.db.users[index] = { ...this.db.users[index], ...updates }; this.save(); }
-  }
-
-  async submitKYC(userId: string, data: KYCData): Promise<void> {
-    const index = this.db.users.findIndex(u => u.id === userId);
-    if (index !== -1) { this.db.users[index].kyc_data = { ...this.db.users[index].kyc_data, ...data, submittedAt: new Date().toISOString() }; this.db.users[index].verification_status = VerificationStatus.PENDING_ID; this.save(); }
-  }
-
-  async verifyBankUPI(userId: string, data: { bankAccount?: string, upiId?: string }): Promise<void> {
-    const index = this.db.users.findIndex(u => u.id === userId);
-    if (index !== -1) {
-      const user = this.db.users[index];
-      if (user.kyc_data) { user.kyc_data.bankAccount = data.bankAccount; user.kyc_data.upiId = data.upiId; }
-      user.verification_status = VerificationStatus.BANK_VERIFIED;
-      this.save();
-      await this.runIntelligenceSync(userId);
-    }
-  }
-
-  async verifyProvider(userId: string, status: VerificationStatus, notes: string): Promise<void> {
-    const index = this.db.users.findIndex(u => u.id === userId);
-    if (index !== -1) { this.db.users[index].verification_status = status; this.save(); }
-  }
-
   async createRequest(req: Partial<ServiceRequestEntity>): Promise<ServiceRequestEntity> {
-    const newReq: ServiceRequestEntity = { id: `REQ_${Date.now()}`, user_id: req.user_id || 'SYSTEM', service_id: req.service_id || 'UNK', status: BookingStatus.CREATED, priority: req.priority || 'MEDIUM', state_code: req.state_code || 'UP', ward_id: req.ward_id || 'WARD_01', created_at: new Date().toISOString(), total_amount: req.total_amount || 0, escalation_level: 0, payment_method: req.payment_method, payment_status: req.payment_status, region_id: 'IN' };
+    const newReq: ServiceRequestEntity = { 
+      id: `REQ_${Date.now()}`, 
+      user_id: req.user_id || 'SYSTEM', 
+      service_id: req.service_id || 'UNK', 
+      status: BookingStatus.CREATED, 
+      priority: req.priority || 'MEDIUM', 
+      state_code: req.state_code || 'UP', 
+      ward_id: req.ward_id || 'WARD_01', 
+      created_at: new Date().toISOString(), 
+      total_amount: req.total_amount || 0, 
+      escalation_level: 0, 
+      payment_method: req.payment_method, 
+      payment_status: req.payment_status, 
+      region_id: 'IN' 
+    };
     this.db.requests.unshift(newReq);
     this.save();
     return newReq;

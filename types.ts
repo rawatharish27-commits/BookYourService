@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
   USER = 'USER',
   PROVIDER = 'PROVIDER',
@@ -67,11 +66,35 @@ export enum RiskLevel {
   CRITICAL = 'CRITICAL'
 }
 
-// Added FraudType enum to resolve import errors in AdminModule.tsx and FraudDetectionEngine.ts
 export enum FraudType {
   MULTI_ACCOUNT_SAME_ID = 'MULTI_ACCOUNT_SAME_ID',
   PRICE_TAMPERING = 'PRICE_TAMPERING',
   HIGH_CANCELLATION = 'HIGH_CANCELLATION'
+}
+
+// Security Architecture Types
+export interface ThreatModelEntry {
+  stride: 'S' | 'T' | 'R' | 'I' | 'D' | 'E';
+  category: string;
+  threat: string;
+  mitigation: string;
+  status: 'MITIGATED' | 'MONITORED' | 'RISK_ACCEPTED';
+}
+
+export interface SecurityControl {
+  id: string;
+  area: 'AUTH' | 'AUTHZ' | 'BILLING' | 'PII' | 'INFRA';
+  label: string;
+  description: string;
+  status: 'ENABLED' | 'DISABLED' | 'PENDING';
+}
+
+export interface SecurityFinding {
+  id: string;
+  severity: RiskLevel;
+  area: string;
+  description: string;
+  status: 'OPEN' | 'FIXED';
 }
 
 export interface RegionConfig {
@@ -243,7 +266,7 @@ export interface UserEntity {
   wallet_balance: number;
   trust_score: number;
   created_at: string;
-  status?: 'ACTIVE' | 'BANNED' | 'SUSPENDED';
+  status?: 'ACTIVE' | 'BANNED' | 'SUSPENDED' | 'FORCE_PASSWORD_RESET';
   verification_status: VerificationStatus;
   kyc_data?: KYCData;
   deviceId?: string;
