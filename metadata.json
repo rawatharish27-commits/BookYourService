@@ -1,0 +1,7 @@
+{
+  "name": "DoorStep Pro: Enterprise Service Platform",
+  "description": "A comprehensive UrbanClap-style platform connecting users with local service providers for daily-life problems with automated billing, platform fee management, and multi-role dashboards.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
