@@ -2,133 +2,103 @@
 import { UserEntity, UserRole, VerificationStatus } from './types';
 import { db } from './DatabaseService';
 
-/**
- * ENTERPRISE AUTHENTICATION & SECURITY SERVICE
- * Implements strict RBAC, bootstrap admin logic, and multi-step verification flows.
- */
 class AuthService {
-  private readonly SESSION_KEY = 'DOORSTEP_PRO_SESSION_V2';
+  private readonly SESSION_KEY = 'DOORSTEP_PRO_SESSION_V4';
+  private pendingAuthPhone: string | null = null;
+  private pendingAuthRole: UserRole = UserRole.USER;
+  
+  // Image 1: Security - IP Allowlisting simulation for Admin nodes
+  private readonly ADMIN_IP_ALLOWLIST = ['127.0.0.1', '192.168.1.1'];
 
-  // BOOTSTRAP CREDENTIALS - For first-time system access only.
-  // In production, these are injected via environment variables or secret manager.
-  private readonly BOOTSTRAP_ADMIN = {
-    email: 'superadmin@platform.local',
-    password: 'Admin@12345!',
-    role: UserRole.ADMIN
-  };
+  async initiateOTP(phone: string, role: UserRole = UserRole.USER): Promise<{ success: boolean }> {
+    this.pendingAuthPhone = phone;
+    this.pendingAuthRole = role;
+    // Image 2 - Step 1 & 2: User enters phone/role, initiates request
+    console.log(`[AUTH-API] Secure OTP 1234 sent to ${phone}`);
+    return { success: true };
+  }
 
-  async login(email: string, password: string): Promise<{ user: UserEntity; token: string } | null> {
+  /**
+   * Image 2: Steps 3, 4, 5 - Verify OTP & Generate JWT Token
+   */
+  async verifyOTP(otp: string, userData?: { name: string; city: string; legal_consent_accepted?: boolean }): Promise<{ user: UserEntity; token: string } | null> {
+    if (!this.pendingAuthPhone || otp !== '1234') {
+      await db.audit('SYSTEM', 'AUTH_FAILED', 'Auth', { phone: this.pendingAuthPhone }, 'WARNING');
+      return null;
+    }
+
+    const currentIp = '127.0.0.1';
+    
+    // Image 1: Lateral Service Breach Prevention
+    if (this.pendingAuthRole === UserRole.ADMIN && !this.ADMIN_IP_ALLOWLIST.includes(currentIp)) {
+      await db.audit('SYSTEM', 'UNAUTHORIZED_ADMIN_IP_PROBE', 'Auth', { ip: currentIp }, 'CRITICAL');
+      return null;
+    }
+
     const allUsers = await db.getUsers();
-    let user = allUsers.find(u => u.email === email);
+    let user = allUsers.find(u => u.phone === this.pendingAuthPhone);
 
-    // 1. Check for Bootstrap Admin (if not in DB yet)
-    if (!user && email === this.BOOTSTRAP_ADMIN.email && password === this.BOOTSTRAP_ADMIN.password) {
-      user = await db.createUser({ 
-        name: 'System Super Admin', 
-        email: email, 
-        role_id: UserRole.ADMIN, 
-        state_code: 'HQ',
-        verification_status: VerificationStatus.ACTIVE,
-        status: 'FORCE_PASSWORD_RESET' // Enforce first-login security
-      });
-      await db.audit(user.id, 'ADMIN_BOOTSTRAP_LOGIN', 'Auth', { context: 'First-time setup' });
-    }
+    const deviceFingerprint = `FINGERPRINT_${navigator.userAgent.length}`;
 
-    // 2. Handle Password Reset State
-    if (user && user.status === 'FORCE_PASSWORD_RESET' && password === this.BOOTSTRAP_ADMIN.password) {
-      return this.createSession(user); // Allow entry to reset view
-    }
-
-    // 3. Handle Existing Users
-    if (user && password === 'password123') { // Demo password logic
-      if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
-        await db.audit(user.id, 'LOGIN_BLOCKED', 'Auth', { status: user.status }, 'WARN');
-        return null;
-      }
-      return this.createSession(user);
-    }
-
-    // 4. Fallback for Demo Users (for development convenience)
     if (!user) {
-        if (email === 'admin@doorstep.gov.in') {
-             user = await db.createUser({ name: 'HQ Admin', email, role_id: UserRole.ADMIN, verification_status: VerificationStatus.ACTIVE });
-             return this.createSession(user);
-        }
-        if (email === 'customer@demo.in') {
-            user = await db.createUser({ name: 'Demo Customer', email, role_id: UserRole.USER, verification_status: VerificationStatus.OTP_VERIFIED });
-            return this.createSession(user);
-        }
-        if (email === 'rajesh@provider.com') {
-            user = await db.createUser({ name: 'Rajesh Provider', email, role_id: UserRole.PROVIDER, verification_status: VerificationStatus.ACTIVE });
-            return this.createSession(user);
-        }
+      if (this.pendingAuthRole === UserRole.ADMIN) return null;
+      
+      user = await db.createUser({
+        name: userData?.name || 'Guest User',
+        phone: this.pendingAuthPhone,
+        role_id: this.pendingAuthRole,
+        state_code: userData?.city || 'DL',
+        verification_status: VerificationStatus.OTP_VERIFIED,
+        is_active: true,
+        deviceId: deviceFingerprint,
+        last_ip: currentIp,
+        legal_consent_accepted: true
+      });
+      await db.audit(user.id, 'USER_REGISTERED', 'Auth', { deviceId: deviceFingerprint });
     }
 
-    if (user) await db.audit(user.id, 'AUTH_FAILURE', 'User', { reason: 'Invalid Password' }, 'ERROR');
-    return null;
+    // Image 2 - Step 3: Generate Token
+    const session = this.createSession(user);
+    
+    // Image 2 - Step 4 & 5: Return JWT & Grant access
+    await db.audit(user.id, 'LOGIN_SUCCESS_JWT_ISSUED', 'Auth', { ip: currentIp });
+    this.pendingAuthPhone = null;
+    return session;
   }
 
   /**
-   * Completes the force password reset loop.
+   * Image 2 - Step 3: Token Generation Logic (Mock JWT)
    */
-  async finalizePasswordReset(userId: string, newPassword: string): Promise<boolean> {
-    if (newPassword.length < 8) return false;
-    await db.updateUser(userId, { status: 'ACTIVE' });
-    await db.audit(userId, 'PASSWORD_RESET_COMPLETE', 'Auth', { reason: 'First-login mandatory reset' });
-    return true;
-  }
-
-  /**
-   * Customer Registration (Simplified flow)
-   */
-  async registerCustomer(phone: string): Promise<UserEntity> {
-    return await db.createUser({
-      phone,
-      role_id: UserRole.USER,
-      verification_status: VerificationStatus.UNVERIFIED
-    });
-  }
-
-  /**
-   * Provider Registration (Multi-step entry)
-   */
-  async registerProvider(data: { name: string, email: string, phone: string }): Promise<UserEntity> {
-    return await db.createUser({
-      ...data,
-      role_id: UserRole.PROVIDER,
-      verification_status: VerificationStatus.UNVERIFIED
-    });
-  }
-
   private createSession(user: UserEntity) {
-    const token = `SECURE_JWT_${btoa(user.id + ':' + Date.now())}`;
+    const expiration = Date.now() + 3600000; // 1 hour
+    const token = `JWT_${btoa(user.id + ':' + expiration)}`;
     const session = { user, token };
     localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
     return session;
   }
 
+  /**
+   * Image 2 - Step 7: Send JWT token on every request check
+   */
   getSession(): { user: UserEntity; token: string } | null {
-    const session = localStorage.getItem(this.SESSION_KEY);
-    return session ? JSON.parse(session) : null;
+    const s = localStorage.getItem(this.SESSION_KEY);
+    if (!s) return null;
+    
+    const session = JSON.parse(s);
+    const tokenParts = atob(session.token.split('_')[1]).split(':');
+    
+    // Token Expiration Security
+    if (Date.now() > parseInt(tokenParts[1])) {
+      console.warn("[AUTH] JWT Token Expired - Re-authentication required");
+      this.logout();
+      return null;
+    }
+    
+    return session;
   }
 
   logout() {
     localStorage.removeItem(this.SESSION_KEY);
-  }
-
-  /**
-   * Strict Access Control Helper
-   */
-  async checkAccess(requiredRoles: UserRole[]): Promise<boolean> {
-    const session = this.getSession();
-    if (!session) return false;
-    
-    // Refresh user state from DB to catch bans/suspensions
-    const users = await db.getUsers();
-    const liveUser = users.find(u => u.id === session.user.id);
-    
-    if (!liveUser || (liveUser.status !== 'ACTIVE' && liveUser.status !== 'FORCE_PASSWORD_RESET')) return false;
-    return requiredRoles.includes(liveUser.role_id);
   }
 }
 

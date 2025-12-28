@@ -1,29 +1,27 @@
 
-import { Category, Problem, SLATier, StateConfig, PSUTypeConfig, ProblemCategoryCoverage, WeeklyChecklist, RiskLevel, Addon, SOPItem, ExpansionChecklist, RegionConfig, ThreatModelEntry, SecurityControl } from './types';
+import { Category, Problem, SLATier, SOPItem } from './types';
 
 export const PLATFORM_FEE = 10;
 export const VISIT_CHARGE = 100;
+export const PROBATION_JOB_LIMIT = 5;
+export const SLA_MINS_THRESHOLD = 60;
 
-export const THREAT_MODEL: ThreatModelEntry[] = [
-  { stride: 'S', category: 'Customer App', threat: 'Fake User Registration', mitigation: 'Mandatory OTP + Device Fingerprinting', status: 'MITIGATED' },
-  { stride: 'T', category: 'Provider App', threat: 'Bill Price Tampering', mitigation: 'Server-side Max Price Lock & Validation', status: 'MITIGATED' },
-  { stride: 'R', category: 'Admin Panel', threat: 'Unauthorized Config Changes', mitigation: 'Immutable Action Logs & Dual Approvals', status: 'MONITORED' },
-  { stride: 'I', category: 'KYC Storage', threat: 'Data Leak of ID Docs', mitigation: 'AES-256 Encryption & Masked Previews', status: 'MITIGATED' },
-  { stride: 'D', category: 'Backend API', threat: 'OTP/SMS Flood Attack', mitigation: 'Hyperlocal Rate Limiting & Cooldowns', status: 'MITIGATED' },
-  { stride: 'E', category: 'RBAC', threat: 'Provider Escalating to Admin', mitigation: 'Strict Middleware JWT Role Verification', status: 'MITIGATED' }
-];
-
-export const SECURITY_CONTROLS: SecurityControl[] = [
-  { id: 'SC01', area: 'AUTH', label: '2FA for Admins', description: 'Requires second factor for all admin dashboard logins.', status: 'ENABLED' },
-  { id: 'SC02', area: 'PII', label: 'Aadhaar Masking', description: 'Masks first 8 digits of Aadhaar on all admin views.', status: 'ENABLED' },
-  { id: 'SC03', area: 'INFRA', label: 'IP Allowlist', description: 'Restricts admin access to corporate VPN IP ranges.', status: 'PENDING' },
-  { id: 'SC04', area: 'BILLING', label: 'Fraud Detection Node', description: 'Automated flags for abnormal payment/cancellation velocity.', status: 'ENABLED' }
-];
-
-export const REGIONS: RegionConfig[] = [
-  { id: 'IN', name: 'India', currency: '₹', platformFee: 10, taxRate: 18, timezone: 'IST', status: 'ACTIVE', infraCostPerBooking: 2.5 },
-  { id: 'UAE', name: 'United Arab Emirates', currency: 'AED', platformFee: 5, taxRate: 5, timezone: 'GST', status: 'PILOT', infraCostPerBooking: 4.2 },
-  { id: 'KSA', name: 'Saudi Arabia', currency: 'SAR', platformFee: 10, taxRate: 15, timezone: 'AST', status: 'PLANNED', infraCostPerBooking: 0 }
+export const BUSINESS_MODEL_STRATEGY = [
+  { id: 'BM01', point: 'Marketplace + Managed Ops Model', impact: 'Ensures platform control while maintaining scalability.' },
+  { id: 'BM02', point: 'Facilitation Only', impact: 'Platform does not perform service; mitigates direct liability.' },
+  { id: 'BM03', point: 'Revenue via Platform Fees', impact: 'Clear, predictable unit economics per transaction.' },
+  { id: 'BM04', point: 'City-wise P&L Ownership', impact: 'Decentralized financial responsibility for faster scaling.' },
+  { id: 'BM05', point: 'Category Margin Tracking', impact: 'Identifies high-value categories for targeted marketing.' },
+  { id: 'BM06', point: 'Repeat Usage Focus', impact: 'Customer LTV optimized over one-time acquisition.' },
+  { id: 'BM07', point: 'Trust > Growth', impact: 'Early phase focus on quality to build long-term moat.' },
+  { id: 'BM08', point: 'Supply Quality Priority', impact: 'Better to have 10 high-rated providers than 100 poor ones.' },
+  { id: 'BM09', point: 'Universal Standardization', impact: 'Ontology-based problems remove ambiguity in field ops.' },
+  { id: 'BM10', point: 'Price Transparency', impact: 'Locked base pricing as the core customer promise.' },
+  { id: 'BM11', point: 'Fraud as Ops Cost', impact: 'Initial fraud losses accepted as part of market penetration.' },
+  { id: 'BM12', point: 'Ops + Tech Symbiosis', impact: 'Code solves trust; Field Boys solve execution.' },
+  { id: 'BM13', point: 'City Launch Playbooks', impact: 'Standardized expansion blueprints for multi-city scale.' },
+  { id: 'BM14', point: 'Dynamic Price Normalization', impact: 'Gradual margin adjustment after establishing market trust.' },
+  { id: 'BM15', point: 'Predictable Economics', impact: 'Goal: Profitable unit economics from Month 3 of launch.' }
 ];
 
 export const CATEGORIES: Category[] = [
@@ -85,6 +83,7 @@ export const generateProblems = (): Problem[] => {
         providerRole: cat.providerType,
         severity: (i % 5) + 1,
         slaTier: i % 3 === 0 ? SLATier.GOLD : i % 3 === 1 ? SLATier.SILVER : SLATier.BRONZE,
+        isEnabled: true // Section 4.8 - Enable/Disable toggle
       });
       globalIdCounter++;
     }
@@ -92,21 +91,6 @@ export const generateProblems = (): Problem[] => {
 
   return problems;
 };
-
-export const PITCH_SLIDES = [
-  { id: 1, title: 'The Problem', content: 'Local services in India are chaotic. Price cheating, low quality, and lack of trust make simple household repairs a nightmare.' },
-  { id: 2, title: 'The Solution', content: 'DoorStep Pro: A price-controlled, problem-based booking platform. We use "Problem Ontologies" to lock pricing before the provider arrives.' },
-  { id: 3, title: 'Product Suite', content: 'Native-feel User App for booking, Provider App for execution/billing, and an Omniscient Admin Panel for governance.' },
-  { id: 4, title: 'Standardized Flow', content: 'User selects a specific problem -> Nearest Provider is matched -> Fixed Base Price is locked -> Transparent Billing through App.' },
-  { id: 5, title: 'Unique Moat', content: 'Anti-Cheat Billing: Providers cannot manually enter prices. They select from pre-approved material add-ons with system-enforced caps.' },
-  { id: 6, title: 'Market Opportunity', content: 'The Indian home services market is valued at $50B+ and is highly fragmented. Digitization is the only way to scale.' },
-  { id: 7, title: 'Revenue Model', content: 'Flat ₹10 platform fee per booking. Featured provider subscriptions. B2B AMC contracts for residential societies.' },
-  { id: 8, title: 'Unit Economics', content: 'High frequency, low customer acquisition cost via hyperlocal density. Profitable from the first city launch.' },
-  { id: 9, title: 'Unmatched Scalability', content: 'Starting with 25 categories and 2000 problems. Engineered to scale to 100+ categories using AI-driven problem taxonomy.' },
-  { id: 10, title: 'Trust & Safety', content: 'Mandatory KYC for providers, call masking, and evidence-based dispute resolution engine.' },
-  { id: 11, title: 'Growth Roadmap', content: 'Phase 1: 5 Tier-1 Cities. Phase 2: National expansion. Phase 3: AI-driven predictive maintenance services.' },
-  { id: 12, title: 'The Ask', content: 'Seeking Seed Funding to optimize the matching engine, scale the problem registry, and launch in the first 3 metro cities.' }
-];
 
 export const SOP_LIST: SOPItem[] = [
   {
@@ -131,109 +115,21 @@ export const SOP_LIST: SOPItem[] = [
       'Manual Review: Admin contacts the provider to verify if unexpected material was used.',
       'Resolution: If valid, admin can increase the limit temporarily; otherwise, provider is warned or banned.'
     ]
-  },
-  {
-    id: 'SOP_003',
-    title: 'Provider Onboarding Rule',
-    category: 'Ops',
-    content: 'Standard verification flow for field boys onboarding new service partners.',
-    steps: [
-      'Identity Check: Mobile OTP verification + Phone Number validation.',
-      'Skill Verification: Selection of core categories (Max 3).',
-      'Test Booking: Send a mock job to verify GPS and arrival workflow.',
-      'Final Approval: Switch status from PENDING to ACTIVE.'
-    ]
-  },
-  {
-    id: 'SOP_004',
-    title: 'Emergency Response Protocol',
-    category: 'Ops',
-    content: 'How to handle Critical Severity jobs that are stalled in the "ASSIGNED" status for >30 mins.',
-    steps: [
-      'Identify critical leads in the Command Center.',
-      'Call the assigned provider immediately to check arrival status.',
-      'If provider is unresponsive, force reassign the job to the next nearest Gold-tier partner.'
-    ]
-  },
-  {
-    id: 'SOP_005',
-    title: 'Customer Refund Policy',
-    category: 'Support',
-    content: 'Handling refund requests for failed or unsatisfactory services.',
-    steps: [
-      'Verify service completion status and payment proof (UPI/COD).',
-      'For UPI failures, initiate automated refund via Payment Gateway Node.',
-      'For poor quality, offer free re-service or platform credit via Wallet Module.'
-    ]
-  },
-  {
-    id: 'SOP_006',
-    title: 'Security Incident - Admin Breach',
-    category: 'Safety',
-    content: 'Protocol for suspected unauthorized admin dashboard access.',
-    steps: [
-      'Freeze all admin credentials globally via Security Node.',
-      'Run STRIDE audit on affected entity activity.',
-      'Mandatory 2FA refresh for all HQ nodes.',
-      'Rotate Bootstrap Secret env variables.'
-    ]
   }
 ];
 
-export const EXPANSION_ROADMAP: ExpansionChecklist[] = [
-  {
-    phase: 'Phase 1: City Launch',
-    days: '0-30 Days',
-    focus: 'Onboarding & Supply',
-    tasks: [
-      'Hire 2 field boys for ground onboarding.',
-      'Visit local electrical/plumbing wholesale hubs.',
-      'Onboard first 30 verified providers with ₹0 platform fee hook.',
-      'Launch Society WhatsApp marketing campaign.'
-    ]
-  },
-  {
-    phase: 'Phase 2: Scale Node',
-    days: '30-60 Days',
-    focus: 'Demand & Trust',
-    tasks: [
-      'Reach 150 bookings/day milestone.',
-      'Implement trust-score based provider dispatch.',
-      'Roll out "Price Locked" promise in local Facebook groups.',
-      'Enable automated wallet settlements for partners.'
-    ]
-  },
-  {
-    phase: 'Phase 3: Stabilization',
-    days: '60-90 Days',
-    focus: 'Efficiency & Margin',
-    tasks: [
-      'Enforce flat ₹10 platform fee across all jobs.',
-      'Identify and prune low-performing providers (<3.5 stars).',
-      'Optimize AI dispatch for reduced ETA.',
-      'Prepare playbook for City 2 expansion.'
-    ]
-  }
-];
-
-export const MASTER_PROBLEM_CATEGORIES: ProblemCategoryCoverage[] = CATEGORIES.map(cat => ({
-  id: cat.id,
-  name: cat.name,
-  problemCount: 80,
-  solvedPercentage: 92 + Math.floor(Math.random() * 8),
-  impact: `Direct impact on daily ${cat.name.toLowerCase()} efficiency.`
-}));
-
-export const EXECUTION_CHECKLIST: WeeklyChecklist[] = [
-  { week: 1, focus: 'Engine Design', tasks: ['Booking Engine', 'Billing Logic', 'Wallet API'], status: 'COMPLETED' },
-  { week: 2, focus: 'Problem Seeding', tasks: ['2000 Problem Taxonomy', 'Price Caps Implementation'], status: 'COMPLETED' },
-  { week: 3, focus: 'Quality Control', tasks: ['Dispute Dashboard', 'Provider Banning System'], status: 'IN_PROGRESS' }
-];
-
-export const STATE_CONFIGS: StateConfig[] = [
-  { id: 'DL', name: 'Delhi NCR', slaModifiers: { [SLATier.GOLD]: 30, [SLATier.SILVER]: 120, [SLATier.BRONZE]: 480 }, pricingCaps: { 'Electrical': 2000 }, language: 'Hindi/English', complianceLevel: 'STANDARD' }
-];
-
-export const PSU_TYPES: PSUTypeConfig[] = [
-  { id: 'MUNI', name: 'Municipal Services', focus: 'MUNICIPAL', customMetrics: ['Cleanliness Index'] }
+// Fix missing PITCH_SLIDES export
+export const PITCH_SLIDES = [
+  { id: 1, title: 'Fragmented Market', content: 'The home service market in India is massive but highly fragmented with no standard pricing or quality guarantee.' },
+  { id: 2, title: 'Managed Marketplace', content: 'We move beyond a simple discovery platform to a fully managed marketplace that owns the service experience.' },
+  { id: 3, title: 'Ontology-based Pricing', content: 'Our unique problem ontology ensures fixed pricing for every service, eliminating stressful bargaining.' },
+  { id: 4, title: 'Automated Operations', content: 'Proprietary algorithms handle dispatch, SLA monitoring, and settlement with minimal manual intervention.' },
+  { id: 5, title: 'Fraud Prevention', content: 'Our AI risk engine detects multi-accounting and price tampering in real-time to protect platform integrity.' },
+  { id: 6, title: 'Provider Success', content: 'Standardized SOPs and predictable payouts ensure high retention and quality from our service partners.' },
+  { id: 7, title: 'Scalability', content: 'The node-based architecture allows us to launch in new cities in as little as 14 days.' },
+  { id: 8, title: 'Unit Economics', content: 'Healthy platform fees and low customer acquisition costs lead to strong EBITDA margins per city.' },
+  { id: 9, title: 'Managed Quality', content: 'Mandatory feedback loops and probation periods for new partners ensure elite service standards.' },
+  { id: 10, title: 'SLA Guarantee', content: 'We offer the industry\'s first standardized SLA guarantee with automated penalties for breaches.' },
+  { id: 11, title: 'Governance Node', content: 'Real-time auditing of all field activities provides unmatched transparency for stakeholders.' },
+  { id: 12, title: 'The Vision', content: 'Becoming India\'s most trusted infrastructure for home services through deep tech and operational excellence.' }
 ];

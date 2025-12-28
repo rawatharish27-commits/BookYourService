@@ -1,5 +1,5 @@
 
-import { PaymentMethod, PaymentStatus } from './types';
+import { PaymentMethod, PaymentStatus, BookingStatus } from './types';
 import { db } from './DatabaseService';
 
 class PaymentService {
@@ -9,10 +9,9 @@ class PaymentService {
   async processUPI(amount: number, bookingId: string): Promise<boolean> {
     console.log(`Generating UPI Intent for ₹${amount} (Booking: ${bookingId})`);
     
-    // Simulate payment processing delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    const isSuccess = Math.random() > 0.05; // 95% success rate for simulation
+    const isSuccess = Math.random() > 0.05; 
     
     if (isSuccess) {
       await db.updateRequest(bookingId, { 
@@ -36,6 +35,27 @@ class PaymentService {
       payment_method: PaymentMethod.COD 
     });
     await db.audit('USER', 'PAYMENT_COD_SET', 'Payment', { bookingId });
+  }
+
+  /**
+   * STORY 9.2 — Refund Handling
+   */
+  async processRefund(bookingId: string): Promise<boolean> {
+    const requests = await db.getRequests();
+    const req = requests.find(r => r.id === bookingId);
+    
+    if (!req || req.payment_status !== PaymentStatus.SUCCESS) return false;
+
+    console.log(`Initiating automated refund for Booking: ${bookingId}`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    await db.updateRequest(bookingId, { 
+      payment_status: PaymentStatus.REFUNDED,
+      status: BookingStatus.CANCELLED
+    });
+
+    await db.audit('SYSTEM', 'REFUND_PROCESSED', 'Payment', { bookingId, amount: req.total_amount });
+    return true;
   }
 }
 

@@ -1,8 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import { Problem, Booking, UserEntity, BookingStatus, Addon, PaymentMethod, PaymentStatus, VerificationStatus } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Problem, Booking, UserEntity, BookingStatus, PaymentMethod, PaymentStatus } from '../types';
 import { CATEGORIES, VISIT_CHARGE, PLATFORM_FEE } from '../constants';
-import { paymentService } from '../PaymentService';
 import { db } from '../DatabaseService';
 
 interface UserModuleProps {
@@ -12,319 +11,183 @@ interface UserModuleProps {
   onBook: (booking: Booking) => void;
 }
 
+const REASON_TAGS = ['Punctuality', 'Behavior', 'Work Quality', 'Cleanliness', 'Pricing Accuracy', 'Expertise'];
+
 const UserModule: React.FC<UserModuleProps> = ({ problems, bookings, user, onBook }) => {
+  const [activeTab, setActiveTab] = useState<'request' | 'track'>('request');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [detectedCity, setDetectedCity] = useState<string>('');
   const [bookingModal, setBookingModal] = useState<Problem | null>(null);
-  const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
-  const [paymentStep, setPaymentStep] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [otpModal, setOtpModal] = useState(false);
-  const [otpValue, setOtpValue] = useState('');
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [address] = useState('B-402, Signature Towers, Gurgaon, Haryana');
+  const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1); 
+  const [selectedSlot, setSelectedSlot] = useState<string>('');
+  
+  // Section 11 - Enhanced Feedback
+  const [feedbackModal, setFeedbackModal] = useState<Booking | null>(null);
+  const [rating, setRating] = useState(0);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [complaint, setComplaint] = useState('');
 
-  const filteredProblems = useMemo(() => {
-    return problems.filter(p => {
-      const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           p.category.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCat = selectedCategory ? p.category === selectedCategory : true;
-      return matchesSearch && matchesCat;
-    }).sort((a, b) => b.severity - a.severity).slice(0, 100);
-  }, [problems, searchTerm, selectedCategory]);
-
-  const toggleAddon = (addon: Addon) => {
-    setSelectedAddons(prev => 
-      prev.find(a => a.id === addon.id) 
-        ? prev.filter(a => a.id !== addon.id) 
-        : [...prev, addon]
-    );
-  };
-
-  const calculateTotal = (base: number) => {
-    const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-    return base + VISIT_CHARGE + addonsTotal;
-  };
-
-  const startBooking = (prob: Problem) => {
-    if (user?.verification_status === VerificationStatus.UNVERIFIED) {
-      setOtpModal(true);
-      return;
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(() => setDetectedCity('Detected: Gurgaon Hub'));
     }
-    setBookingModal(prob);
-    setSelectedAddons([]);
-    setPaymentStep(false);
+  }, []);
+
+  const myBookings = useMemo(() => bookings.filter(b => b.user_id === user?.id), [bookings, user]);
+  
+  // Mandatory Feedback logic Section 11.1
+  useEffect(() => {
+    const pendingRating = myBookings.find(b => b.status === BookingStatus.COMPLETED && !b.rating);
+    if (pendingRating) setFeedbackModal(pendingRating);
+  }, [myBookings]);
+
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackModal) return;
+    await db.addFeedback(feedbackModal.id, rating, complaint, selectedTags);
+    setFeedbackModal(null);
+    setRating(0);
+    setSelectedTags([]);
+    setComplaint('');
   };
 
-  const handleVerifyOTP = async () => {
-    if (!user || otpValue.length < 4) return;
-    setIsVerifyingOtp(true);
-    await new Promise(r => setTimeout(r, 1500));
-    await db.verifyOTP(user.id);
-    setIsVerifyingOtp(false);
-    setOtpModal(false);
-    alert("Phone Verified. You can now book services.");
-  };
-
-  const finalizeBooking = async (method: PaymentMethod) => {
-    if (!bookingModal || !user) return;
-    setProcessingPayment(true);
-
-    const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-    const totalAmount = bookingModal.basePrice + VISIT_CHARGE + addonsTotal;
-    const tempBookingId = 'book_' + Date.now();
-
-    if (method === PaymentMethod.UPI) {
-      const success = await paymentService.processUPI(totalAmount, tempBookingId);
-      if (!success) {
-        alert("Payment failed. Please try again or choose COD.");
-        setProcessingPayment(false);
-        return;
-      }
+  const getStatusStep = (status: BookingStatus) => {
+    switch (status) {
+      case BookingStatus.CREATED: return 1;
+      case BookingStatus.VERIFIED: return 2;
+      case BookingStatus.IN_PROGRESS: return 3;
+      case BookingStatus.COMPLETED: return 4;
+      default: return 1;
     }
+  };
 
+  const handleConfirmBooking = () => {
+    if (!bookingModal || !selectedSlot) return;
+    const total = bookingModal.basePrice + VISIT_CHARGE;
     const newBooking: Booking = {
-      id: tempBookingId,
-      user_id: user.id,
-      userName: user.name,
+      id: `REQ_${Date.now()}`,
+      user_id: user!.id,
+      userName: user!.name,
       service_id: bookingModal.id,
-      ontologyId: bookingModal.ontologyId,
       problemTitle: bookingModal.title,
       category: bookingModal.category,
       subCategory: bookingModal.subCategory,
       status: BookingStatus.CREATED,
-      priority: bookingModal.severity > 7 ? 'HIGH' : 'MEDIUM',
-      severity: bookingModal.severity,
-      slaTier: bookingModal.slaTier,
+      priority: 'MEDIUM',
+      state_code: user!.state_code,
+      ward_id: 'W_01',
       created_at: new Date().toISOString(),
-      state_code: user.state_code || 'UP',
-      basePrice: bookingModal.basePrice,
-      selectedAddons: selectedAddons,
+      total_amount: total,
       visitCharge: VISIT_CHARGE,
-      total_amount: totalAmount,
+      basePrice: bookingModal.basePrice,
       platformFee: PLATFORM_FEE,
-      providerEarnings: totalAmount - PLATFORM_FEE,
-      address: address,
-      ward_id: 'WARD_042',
-      history: [],
-      payment_method: method,
-      payment_status: method === PaymentMethod.UPI ? PaymentStatus.SUCCESS : PaymentStatus.PENDING
+      providerEarnings: total - PLATFORM_FEE,
+      selectedAddons: [],
+      address: 'Skyline Heights, Tower C, Gurgaon',
+      ontologyId: bookingModal.ontologyId,
+      slaTier: bookingModal.slaTier,
+      severity: bookingModal.severity,
+      scheduledTime: selectedSlot
     };
-
     onBook(newBooking);
     setBookingModal(null);
-    setSelectedAddons([]);
-    setPaymentStep(false);
-    setProcessingPayment(false);
+    setBookingStep(1);
+    setSelectedSlot('');
+    setActiveTab('track');
   };
 
   return (
-    <div className="space-y-10 animate-fadeIn max-w-4xl mx-auto">
-      {/* Mobile-style Search Bar */}
-      <div className="sticky top-24 z-40 bg-[#F8FAFC]/80 backdrop-blur-md pb-4">
-        <div className="relative group">
-          <input 
-            type="text" 
-            placeholder="Search for 'Fan repair', 'AC service'..."
-            className="w-full px-12 py-6 rounded-2xl bg-white border border-gray-100 shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-lg font-bold text-[#0A2540]"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          </div>
+    <div className="space-y-10 animate-fadeIn max-w-4xl mx-auto pb-20">
+      <div className="flex justify-between items-center px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-[10px] font-black text-[#0A2540] uppercase tracking-widest">{detectedCity || 'Hub: Delhi-NCR'}</span>
         </div>
       </div>
 
-      {/* Category Shortcuts */}
-      <section className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
-        {CATEGORIES.slice(0, 16).map(cat => (
-          <button 
-            key={cat.id} 
-            onClick={() => setSelectedCategory(selectedCategory === cat.name ? null : cat.name)}
-            className="flex flex-col items-center group"
-          >
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl transition-all shadow-sm ${
-              selectedCategory === cat.name ? 'bg-[#0A2540] text-white scale-110 shadow-xl' : 'bg-white group-hover:bg-gray-50 text-gray-400'
-            }`}>
-              {cat.icon}
-            </div>
-            <span className={`text-[9px] font-black uppercase mt-2 tracking-tighter text-center ${selectedCategory === cat.name ? 'text-[#0A2540]' : 'text-gray-400'}`}>
-              {cat.name}
-            </span>
-          </button>
-        ))}
-      </section>
+      <div className="flex bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200">
+        <button onClick={() => setActiveTab('request')} className={`flex-1 py-4 font-black text-[10px] uppercase rounded-xl transition-all ${activeTab === 'request' ? 'bg-[#0A2540] text-white shadow-xl' : 'text-gray-400'}`}>New Request</button>
+        <button onClick={() => setActiveTab('track')} className={`flex-1 py-4 font-black text-[10px] uppercase rounded-xl transition-all ${activeTab === 'track' ? 'bg-[#0A2540] text-white shadow-xl' : 'text-gray-400'}`}>Activity ({myBookings.length})</button>
+      </div>
 
-      {/* Recommended/Filtered Services */}
-      <section className="space-y-6">
-        <div className="flex justify-between items-end">
-          <h2 className="text-2xl font-black text-[#0A2540] tracking-tighter uppercase">
-            {selectedCategory || "Top Booked Services"}
-          </h2>
-          <span className="text-[10px] font-black text-blue-500 uppercase">{filteredProblems.length} available</span>
-        </div>
-
-        <div className="space-y-4">
-          {filteredProblems.map(prob => (
-            <div 
-              key={prob.id} 
-              className="bg-white p-6 rounded-[2rem] border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-6 group hover:shadow-xl transition-all"
-            >
-              <div className="flex-1 text-center sm:text-left">
-                <div className="flex items-center gap-2 justify-center sm:justify-start mb-2">
-                  <span className="px-2 py-0.5 rounded-lg text-[8px] font-black bg-blue-50 text-blue-500 uppercase">{prob.category}</span>
+      {activeTab === 'request' && (
+        <div className="space-y-8 animate-fadeIn">
+          <div className="relative">
+             <input type="text" placeholder="Describe your problem..." className="w-full bg-white px-8 py-7 rounded-[2.5rem] border border-gray-100 shadow-xl font-bold text-xl outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
+             {CATEGORIES.slice(0, 8).map(cat => (
+               <div key={cat.id} onClick={() => setSearchTerm(cat.name)} className="flex flex-col items-center gap-2 cursor-pointer">
+                 <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-xl">{cat.icon}</div>
+                 <p className="text-[8px] font-black uppercase text-gray-400">{cat.name}</p>
+               </div>
+             ))}
+          </div>
+          <div className="space-y-4">
+            {problems.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10).map(p => (
+              <div key={p.id} className="bg-white p-7 rounded-[2.5rem] border border-gray-100 flex justify-between items-center shadow-sm">
+                <div className="flex-1">
+                   <h4 className="text-lg font-black text-[#0A2540]">{p.title}</h4>
+                   <p className="text-xs font-bold text-gray-400 uppercase">₹{p.basePrice} + Visit</p>
                 </div>
-                <h3 className="text-xl font-black text-[#0A2540] mb-1">{prob.title}</h3>
-                <p className="text-xs text-gray-400 font-medium line-clamp-1">{prob.description}</p>
-                <div className="mt-3 flex items-center gap-4 justify-center sm:justify-start">
-                   <span className="text-lg font-black text-[#0A2540]">₹{prob.basePrice}</span>
-                   <span className="text-[9px] font-black text-gray-300 uppercase">+ ₹{VISIT_CHARGE} Visit</span>
-                </div>
+                <button onClick={() => setBookingModal(p)} className="bg-[#0A2540] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase">Book</button>
               </div>
-              <button 
-                onClick={() => startBooking(prob)}
-                className="w-full sm:w-auto px-10 py-4 bg-[#0A2540] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all"
-              >
-                Book
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* OTP Verification Modal */}
-      {otpModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 z-[110] animate-fadeIn">
-          <div className="bg-white p-10 rounded-[3rem] w-full max-w-sm text-center space-y-8 animate-slideUp">
-             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-[#00D4FF] mx-auto text-2xl font-black">!</div>
-             <div>
-                <h3 className="text-2xl font-black text-[#0A2540] uppercase tracking-tighter">Verify Identity</h3>
-                <p className="text-gray-400 text-xs font-bold mt-2">Enter the 4-digit OTP sent to {user?.phone || 'your registered number'}</p>
-             </div>
-             <input 
-                type="text" 
-                maxLength={4} 
-                className="w-full text-center text-4xl font-black tracking-[0.5em] py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10"
-                value={otpValue}
-                onChange={e => setOtpValue(e.target.value)}
-                placeholder="0000"
-             />
-             <button 
-                onClick={handleVerifyOTP}
-                disabled={isVerifyingOtp}
-                className="w-full bg-[#0A2540] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50"
-             >
-                {isVerifyingOtp ? 'Verifying...' : 'Validate Phone'}
-             </button>
-             <button onClick={() => setOtpModal(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest underline">Cancel</button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Booking/Payment Modal */}
+      {activeTab === 'track' && (
+        <div className="space-y-8 animate-fadeIn">
+          {myBookings.map(b => (
+            <div key={b.id} className="bg-white p-10 rounded-[3.5rem] border-2 border-gray-100 shadow-2xl">
+              <div className="flex justify-between items-start mb-10">
+                 <div>
+                    <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-600">{b.status}</span>
+                    <h4 className="text-3xl font-black text-[#0A2540] mt-4">{b.problemTitle}</h4>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-4xl font-black text-[#0A2540]">₹{b.total_amount}</p>
+                 </div>
+              </div>
+              <div className="relative py-8 flex justify-between items-center px-4">
+                 {[1, 2, 3, 4].map(idx => (
+                   <div key={idx} className={`w-12 h-12 rounded-full flex items-center justify-center font-black ${getStatusStep(b.status) >= idx ? 'bg-[#00D4FF]' : 'bg-gray-100'}`}>{idx}</div>
+                 ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Mandatory Feedback Section 11.2 */}
+      {feedbackModal && (
+        <div className="fixed inset-0 bg-[#0A2540]/95 backdrop-blur-2xl z-[300] flex items-center justify-center p-6 animate-fadeIn">
+          <div className="bg-white rounded-[4rem] p-12 w-full max-w-lg text-center space-y-8 shadow-3xl">
+             <h3 className="text-3xl font-black text-[#0A2540] uppercase tracking-tighter">Rate the Pro</h3>
+             <div className="flex justify-center gap-3 py-4">
+                {[1, 2, 3, 4, 5].map(star => (
+                   <button key={star} onClick={() => setRating(star)} className={`text-5xl ${rating >= star ? 'text-yellow-400' : 'text-gray-100'}`}>★</button>
+                ))}
+             </div>
+             
+             <div className="grid grid-cols-2 gap-3">
+                {REASON_TAGS.map(tag => (
+                   <button key={tag} onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])} className={`p-4 rounded-2xl text-[10px] font-black uppercase transition-all ${selectedTags.includes(tag) ? 'bg-[#0A2540] text-white' : 'bg-gray-50 text-gray-400'}`}>{tag}</button>
+                ))}
+             </div>
+
+             <textarea placeholder="Tell us more about the service..." className="w-full bg-gray-50 rounded-3xl p-6 text-sm outline-none h-32" value={complaint} onChange={e => setComplaint(e.target.value)} />
+             <button onClick={handleFeedbackSubmit} disabled={rating === 0} className="w-full bg-[#0A2540] text-white py-6 rounded-2xl font-black uppercase text-xs">Submit & Continue</button>
+          </div>
+        </div>
+      )}
+
       {bookingModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-fadeIn">
-          <div className="bg-white rounded-t-[3rem] sm:rounded-[3rem] w-full max-w-lg overflow-hidden animate-slideUp">
-            {!paymentStep ? (
-              <div className="p-8 sm:p-10 space-y-8">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{bookingModal.category}</span>
-                    <h3 className="text-3xl font-black text-[#0A2540] tracking-tighter mt-1">{bookingModal.title}</h3>
-                  </div>
-                  <button onClick={() => setBookingModal(null)} className="text-gray-300 hover:text-black">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-[#0A2540] uppercase tracking-[0.2em]">Select Material Add-ons</h4>
-                    <div className="space-y-3">
-                      {bookingModal.addons.map(addon => (
-                        <button 
-                          key={addon.id} 
-                          onClick={() => toggleAddon(addon)}
-                          className={`w-full flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${
-                            selectedAddons.find(a => a.id === addon.id) ? 'border-[#0A2540] bg-[#0A2540]/5' : 'border-gray-50 bg-gray-50'
-                          }`}
-                        >
-                          <div className="text-left">
-                            <p className="font-bold text-sm text-[#0A2540]">{addon.name}</p>
-                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">₹{addon.price}</p>
-                          </div>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            selectedAddons.find(a => a.id === addon.id) ? 'bg-[#0A2540] border-[#0A2540]' : 'border-gray-300'
-                          }`}>
-                            {selectedAddons.find(a => a.id === addon.id) && <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"></path></svg>}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white">
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Est. Payable</p>
-                      <p className="text-4xl font-black text-[#00D4FF]">₹{calculateTotal(bookingModal.basePrice)}</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setPaymentStep(true)}
-                    className="w-full bg-[#00D4FF] text-[#0A2540] py-6 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all"
-                  >
-                    Proceed to Payment
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 sm:p-10 space-y-8">
-                <div className="flex justify-between items-center">
-                  <button onClick={() => setPaymentStep(false)} className="text-gray-400 hover:text-black flex items-center gap-2">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-                  </button>
-                  <h3 className="text-xl font-black text-[#0A2540] uppercase tracking-tighter">Choose Payment</h3>
-                  <div className="w-6"></div>
-                </div>
-
-                <div className="space-y-4">
-                  <button 
-                    disabled={processingPayment}
-                    onClick={() => finalizeBooking(PaymentMethod.UPI)}
-                    className="w-full flex items-center gap-6 p-6 rounded-3xl border-2 border-gray-100 hover:border-[#0A2540] transition-all group"
-                  >
-                    <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 text-2xl font-black group-hover:bg-[#0A2540] group-hover:text-white">U</div>
-                    <div className="text-left flex-1">
-                      <p className="font-black text-[#0A2540] uppercase">UPI Intent</p>
-                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">PhonePe, GPay, Paytm</p>
-                    </div>
-                  </button>
-
-                  <button 
-                    disabled={processingPayment}
-                    onClick={() => finalizeBooking(PaymentMethod.COD)}
-                    className="w-full flex items-center gap-6 p-6 rounded-3xl border-2 border-gray-100 hover:border-[#0A2540] transition-all group"
-                  >
-                    <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 text-2xl font-black group-hover:bg-[#0A2540] group-hover:text-white">₹</div>
-                    <div className="text-left flex-1">
-                      <p className="font-black text-[#0A2540] uppercase">Cash on Delivery</p>
-                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Pay after service completion</p>
-                    </div>
-                  </button>
-                </div>
-
-                {processingPayment && (
-                  <div className="text-center space-y-4 py-8 animate-pulse">
-                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto animate-spin"></div>
-                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Verifying Transaction...</p>
-                  </div>
-                )}
-              </div>
-            )}
+        <div className="fixed inset-0 bg-[#0A2540]/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6 animate-fadeIn">
+          <div className="bg-white rounded-[4rem] p-12 w-full max-w-sm text-center space-y-10 shadow-3xl">
+             <h3 className="text-3xl font-black text-[#0A2540] uppercase">Order Confirmation</h3>
+             <button onClick={handleConfirmBooking} className="w-full bg-green-500 text-white py-6 rounded-2xl font-black uppercase text-xs">Confirm Job</button>
+             <button onClick={() => setBookingModal(null)} className="text-[10px] font-black text-gray-400 uppercase">Cancel</button>
           </div>
         </div>
       )}
