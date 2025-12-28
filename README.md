@@ -1,20 +1,55 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# DoorStep Pro: Enterprise Service Platform
 
-This contains everything you need to run your app locally.
+A comprehensive UrbanClap-style platform connecting users with local service providers for daily-life problems. This platform features a systematic "Problem Ontology" engine with 2,000+ pre-defined services and strict price controls.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Qyg8W4KrQcrO07ncOrCBU5QbC0aSLKOt
+## 🚀 Key Features
+- **Problem-Based Booking**: Users select from 2,000+ specific daily problems rather than generic categories.
+- **Strict Pricing Engine**: Automated billing based on system-locked base prices and material add-ons.
+- **Multi-Role Governance**: 
+  - **User App**: Booking, live tracking, and UPI/COD payments.
+  - **Provider App**: Lead management, arrival scheduling, and anti-cheat billing.
+  - **Admin Panel**: Revenue monitoring, price control, and provider banning.
+- **Platform Economics**: Automatic ₹10 fee deduction per completed service.
+- **Investor Pitch Deck**: Integrated 12-slide pitch deck for funding purposes.
 
-## Run Locally
+## 🛠️ Tech Stack
+- **Frontend**: React (v19) with Tailwind CSS.
+- **State Management**: React Hooks & Context pattern.
+- **Database**: LocalStorage-based simulated Database Service (Sync-Ready).
+- **Intelligence**: Rule-based AI risk assessment and SLA tracking.
+- **Visualization**: Recharts for revenue and categorical analytics.
 
-**Prerequisites:**  Node.js
+## 📦 File Structure
+```
+/
+├── types.ts              # Core TypeScript Interfaces
+├── constants.tsx        # 2000 Problem Taxonomy & Static Data
+├── App.tsx              # Main Application Controller
+├── AuthService.ts       # RBAC & Session Management
+├── DatabaseService.ts   # Persistent Data Layer Simulation
+├── PaymentService.ts    # UPI & COD Payment Flow Simulation
+├── AIIntelligenceService.ts # Proactive Risk & Priority AI
+├── components/          # Role-Specific UI Modules
+│   ├── UserModule.tsx
+│   ├── ProviderModule.tsx
+│   ├── AdminModule.tsx
+│   └── PitchModule.tsx
+└── README.md            # Project Documentation
+```
 
+## 🏗️ Getting Started
+1. Clone the repository.
+2. Install dependencies: `npm install`.
+3. Run the development server: `npm run start`.
+4. Login with default credentials:
+   - **Admin**: `admin@doorstep.gov.in` (Pass: `password123`)
+   - **Provider**: `rajesh@provider.com` (Pass: `password123`)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🏙️ Launch Strategy (First 30 Days)
+1. **Week 1 (Supply)**: Ground-level onboarding of electricians/plumbers via local wholesale stores.
+2. **Week 2 (Demand)**: Hyper-local marketing in residential societies with "Fixed Price" hooks.
+3. **Week 3 (Ops)**: Verify SLA adherence and settle provider wallets daily.
+
+---
+*Developed for Enterprise Scale by DoorStep Pro Governance v3.5.*

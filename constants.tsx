@@ -1,4 +1,14 @@
-import { Category, Problem, SLATier, StateConfig, PSUTypeConfig } from './types';
+
+import { Category, Problem, SLATier, StateConfig, PSUTypeConfig, ProblemCategoryCoverage, WeeklyChecklist, RiskLevel, Addon, SOPItem, ExpansionChecklist, RegionConfig } from './types';
+
+export const PLATFORM_FEE = 10;
+export const VISIT_CHARGE = 100;
+
+export const REGIONS: RegionConfig[] = [
+  { id: 'IN', name: 'India', currency: '₹', platformFee: 10, taxRate: 18, timezone: 'IST', status: 'ACTIVE', infraCostPerBooking: 2.5 },
+  { id: 'UAE', name: 'United Arab Emirates', currency: 'AED', platformFee: 5, taxRate: 5, timezone: 'GST', status: 'PILOT', infraCostPerBooking: 4.2 },
+  { id: 'KSA', name: 'Saudi Arabia', currency: 'SAR', platformFee: 10, taxRate: 15, timezone: 'AST', status: 'PLANNED', infraCostPerBooking: 0 }
+];
 
 export const CATEGORIES: Category[] = [
   { id: 'ELECTRICAL', name: 'Electrical', icon: '⚡', providerType: 'Electrician' },
@@ -10,294 +20,192 @@ export const CATEGORIES: Category[] = [
   { id: 'SECURITY', name: 'CCTV & Security', icon: '📹', providerType: 'Security Tech' },
   { id: 'RO_WATER', name: 'RO & Water', icon: '💧', providerType: 'RO Technician' },
   { id: 'CARPENTER', name: 'Carpenter', icon: '🪚', providerType: 'Carpenter' },
-  { id: 'PAINTING', name: 'Painting', icon: '🎨', providerType: 'Painter' },
+  { id: 'PAINTING', name: 'Painting & Renovation', icon: '🎨', providerType: 'Painter' },
   { id: 'CLEANING', name: 'Cleaning', icon: '🧹', providerType: 'House Cleaner' },
   { id: 'PEST_CONTROL', name: 'Pest Control', icon: '🐜', providerType: 'Pest Expert' },
   { id: 'MECHANIC', name: 'Vehicle Repair', icon: '🔧', providerType: 'Mechanic' },
   { id: 'GAS_KITCHEN', name: 'Gas & Kitchen', icon: '🔥', providerType: 'Gas Technician' },
   { id: 'PACKERS', name: 'Home Shifting', icon: '📦', providerType: 'Packers & Movers' },
-  { id: 'HANDYMAN', name: 'Handyman', icon: '🛠️', providerType: 'Handyman' },
+  { id: 'HANDYMAN', name: 'Interior Small Works', icon: '🛠️', providerType: 'Handyman' },
   { id: 'IOT_SMART', name: 'Smart Devices', icon: '🤖', providerType: 'IoT Technician' },
   { id: 'SOLAR', name: 'Solar & Power', icon: '☀️', providerType: 'Solar Tech' },
   { id: 'FURNITURE', name: 'Furniture Assembly', icon: '🛋️', providerType: 'Assembler' },
   { id: 'EVENTS', name: 'Event Support', icon: '🎉', providerType: 'Event Helper' },
-  { id: 'BEAUTY', name: 'Personal Care', icon: '💅', providerType: 'Beautician' },
+  { id: 'BEAUTY', name: 'Personal Care @Home', icon: '💅', providerType: 'Beautician' },
   { id: 'HEALTH', name: 'Health @Home', icon: '🏥', providerType: 'Nurse' },
-  { id: 'DELIVERY', name: 'Pickup Agent', icon: '🚲', providerType: 'Pickup Agent' },
-  { id: 'GOVT_FIELD', name: 'Field Agent', icon: '📄', providerType: 'Field Agent' },
-  { id: 'EMERGENCY', name: 'Rapid Response', icon: '🚨', providerType: 'Emergency Pro' },
+  { id: 'DELIVERY', name: 'Delivery Support', icon: '🚲', providerType: 'Pickup Agent' },
+  { id: 'GOVT_FIELD', name: 'Government Form Help', icon: '📄', providerType: 'Field Agent' },
+  { id: 'EMERGENCY', name: 'Misc Emergency', icon: '🚨', providerType: 'Rapid Response' },
 ];
 
-export const STATE_CONFIGS: StateConfig[] = [
-  {
-    id: 'UP',
-    name: 'Uttar Pradesh',
-    slaModifiers: { [SLATier.GOLD]: 360, [SLATier.SILVER]: 720, [SLATier.BRONZE]: 1440 },
-    pricingCaps: { 'Electrical': 500, 'Plumbing': 400 },
-    language: 'Hindi',
-    complianceLevel: 'STRICT'
-  },
-  {
-    id: 'MH',
-    name: 'Maharashtra',
-    slaModifiers: { [SLATier.GOLD]: 240, [SLATier.SILVER]: 480, [SLATier.BRONZE]: 1000 },
-    pricingCaps: { 'Electrical': 700, 'Plumbing': 600 },
-    language: 'Marathi',
-    complianceLevel: 'SOVEREIGN'
-  },
-  {
-    id: 'GJ',
-    name: 'Gujarat',
-    slaModifiers: { [SLATier.GOLD]: 180, [SLATier.SILVER]: 360, [SLATier.BRONZE]: 720 },
-    pricingCaps: { 'Electrical': 450, 'Plumbing': 350 },
-    language: 'Gujarati',
-    complianceLevel: 'STANDARD'
-  }
-];
-
-export const TENDER_SAMPLES = {
-  UP: {
-    title: "UP DISCOM - Complaint Management & Workforce Automation",
-    objectives: ["Resolution Time Reduction", "Grid Reliability", "Audit Readiness"],
-    sla: { "Power Outage": "≤ 6h", "Transformer Fault": "≤ 6h", "Meter Issue": "≤ 24h" },
-    focus: "Night crew mandatory, data residency within state."
-  },
-  MH: {
-    title: "MAHAVITARAN - Union-Compliant Digital Ops",
-    objectives: ["Union Compliance", "Night Shift Safety", "Marathi Language UI"],
-    sla: { "Transformer": "≤ 4h", "Line Fault": "≤ 4h" },
-    focus: "ISO 27001 alignment, strict vendor exit clause."
-  },
-  GJ: {
-    title: "GUVNL - Predictive Infrastructure Pilot",
-    objectives: ["Smart Meter Integration", "Preventive Maintenance", "Tech-first ROI"],
-    sla: { "Transformer": "≤ 3h" },
-    focus: "AI-assisted maintenance, high-velocity SLAs."
-  }
-};
-
-export const ANNEXURE_D = [
-  { id: '1', title: 'Applicability of State Laws', content: 'Contract governed by State Government Acts, Rules, and Notifications issued from time to time.' },
-  { id: '2', title: 'Jurisdiction Clause', content: 'Courts within the State capital district shall have exclusive jurisdiction for all legal proceedings.' },
-  { id: '3', title: 'SGST Compliance', content: 'Vendor must possess valid State GST registration. All tax structure changes borne per Govt norms.' },
-  { id: '4', title: 'Sovereign Data Ownership', content: 'All logs, AI outputs, and analytics are exclusive property of State Govt. No off-shore transfer.' },
-  { id: '5', title: 'Cyber Security Mandate', content: 'Aligned with State Cyber Policy, CERT-In, and DPDP Act 2023. MeitY-empanelled hosting only.' },
-  { id: '6', title: 'Law Enforcement Confidentiality', content: 'Classified access protocols. NDA survives post-termination. Zero unauthorized subcontracting.' },
-  { id: '7', title: 'Language & Training', content: 'UI and training manuals mandated in State Official Language. Mandatory on-site workshops.' },
-  { id: '8', title: 'Force Majeure (State)', includes: 'State-declared emergencies, law & order situations, notified natural calamities.' },
-  { id: '9', title: 'Termination & Blacklisting', content: 'Right to terminate without reasons. Breach leads to across-department blacklisting.' },
-  { id: '10', title: 'Affidavit Undertaking', content: 'Vendor shall submit sworn Affidavit/Undertaking for absolute compliance with these clauses.' }
-];
-
-export const AI_MODEL_CARD = {
-  name: 'Service Resilience & Forensic Node v1.0',
-  type: 'Hybrid ML System (Rule-based + XGBoost + LSTM)',
-  intendedUse: 'Forensics, Fraud Detection, Predictive Infrastructure Maintenance',
-  inputs: ['CDR', 'IP Logs', 'Device Metadata', 'Transaction Records', 'Evidence Files'],
-  explainability: 'SHAP-based feature importance provided for every output. No black-box decisions.',
-  governance: 'AI-Driven suggestions; human-decided execution. Continuous bias auditing.',
-  security: 'AES-256 at rest, TLS 1.3 in transit. RBAC and Immutable Logs.'
-};
-
-export const ROI_METRICS = [
-  { parameter: 'Operational Savings', before: 'Manual/Fragmented', after: 'AI-Enforced', annualSaving: '₹14.2Cr' },
-  { parameter: 'Leakage Prevention', before: '15% Audit Drift', after: '<0.5% Drift', annualSaving: '₹28.5Cr' },
-  { parameter: 'Efficiency Gains', before: '24h Resolution', after: '4h-6h Resolution', annualSaving: 'Intangible/High' }
-];
-
-export const BOQ_DATA = [
-  { id: 1, item: 'AI Service Platform (On-Prem)', qty: 1, unit: 'Lot', remarks: 'Perpetual Sovereign License' },
-  { id: 2, item: 'Investigation Workstations', qty: 24, unit: 'Nos', remarks: 'High-spec Forensic PCs' },
-  { id: 3, item: 'AI Processing Server', qty: 4, unit: 'Nos', remarks: 'Dual GPU enabled' },
-  { id: 4, item: 'Secure Encrypted Storage', qty: 100, unit: 'TB', remarks: 'NAS/SAN Encrypted' },
-  { id: 5, item: 'Network Security Suite', qty: 1, unit: 'Lot', remarks: 'Firewall + IDS/IPS' },
-  { id: 6, item: 'Field Agent Licenses', qty: 2000, unit: 'Nos', remarks: 'Standard Enterprise Tier' },
-  { id: 7, item: 'Training & Certification', qty: 1, unit: 'Lot', remarks: 'On-site State Capacity Building' },
-  { id: 8, item: 'AMC (3 Years)', qty: 1, unit: 'Lot', remarks: 'Post-Warranty 24x7 SLA' },
-  { id: 9, item: 'Installation & Commissioning', qty: 1, unit: 'Lot', remarks: 'Turnkey Handover' },
-  { id: 10, item: 'Documentation & SOPs', qty: 1, unit: 'Lot', remarks: 'Regulatory/Audit compliant' }
-];
-
-export const AI_PRODUCTION_STAGES = [
-  { id: 'P0', title: 'Data Readiness', timeline: '0-2 Mo', tasks: ['Historical Cleanup', 'Asset Normalization', 'Weather Tagging'] },
-  { id: 'P1', title: 'Offline Models', timeline: '3-4 Mo', tasks: ['XGBoost Training', 'SLA Back-testing', 'SHAP Explainability'] },
-  { id: 'P2', title: 'Shadow Mode', timeline: '5-6 Mo', tasks: ['Live Predictions', 'Officer Feedback Loop', 'False Positive Analysis'] },
-  { id: 'P3', title: 'Human-in-Loop', timeline: '7-9 Mo', tasks: ['Manual Approvals', 'Threshold Alerts', 'Audit Trails'] },
-  { id: 'P4', title: 'Limited Auto', timeline: 'Post-Approval', tasks: ['Low-risk Preventive', 'Draft Auto-creation', 'Bias Monitoring'] }
-];
-
-export const NATIONAL_BUDGET = [
-  { head: 'Platform Dev', y1: 3.0, y2: 2.0, y3: 1.5 },
-  { head: 'Cloud & Infra', y1: 1.5, y2: 2.5, y3: 4.0 },
-  { head: 'Ops & Training', y1: 1.0, y2: 2.0, y3: 3.0 },
-  { head: 'Security & Audit', y1: 0.5, y2: 1.0, y3: 1.5 },
-  { head: 'AI & Analytics', y1: 0.5, y2: 1.5, y3: 2.5 }
-];
-
-export const CABINET_SLIDES = [
-  { title: 'The Problem', points: ['Fragmented complaint ecosystem', 'Systemic SLA breaches', 'Lack of decision transparency', 'Heavy audit and leakage risk'] },
-  { title: 'The Solution: DoorStep Pro', points: ['Unified Digital Sovereign Platform', 'SLA-based automated enforcement', 'Real-time Command & Control', 'Immutable Audit Trails'] },
-  { title: 'Citizen & Nodal Impact', points: ['Guaranteed resolution velocity', 'Single source of truth for citizens', 'Officer safety via logged decisions', 'Reduced audit objections'] },
-  { title: 'Governance & AI', points: ['AI suggests; Officers decide', 'Predictive infrastructure maintenance', 'Explainable risk scoring', 'Bias-free resource allocation'] },
-  { title: 'National Rollout Budget', points: ['Year 1: ₹6.5 Cr (Foundation)', 'Year 2: ₹9.0 Cr (Expansion)', 'Year 3: ₹12.5 Cr (National)'] },
-  { title: 'Risk & Mitigation', points: ['On-prem sovereign hosting', 'Manual kill-switch for automation', 'Independent security audits', 'Zero vendor lock-in'] },
-  { title: 'The Ask', points: ['Approval for City-level Pilot', 'Nominate Nodal Monitoring Officer', 'Budgetary sanction for Phase 1', '90-day progress review mandate'] }
-];
-
-export const NEGOTIATION_PLAYBOOK = {
-  mindset: "Pitch like infrastructure partner, not a startup.",
-  powerPhrases: [
-    "Reduces audit objections",
-    "Officers safe, not exposed",
-    "No vendor lock-in",
-    "ISO/Regulatory compliance"
-  ],
-  strategies: [
-    { step: "Pilot First", text: "Prove value in one circle/zone before scaling." },
-    { step: "Officer Safety", text: "Every decision is logged, immutable, and auditable." },
-    { step: "Neutrality", text: "System treats all wards and feeders equally." }
-  ]
-};
-
-export const PSU_TYPES: PSUTypeConfig[] = [
-  { id: 'DISCOM', name: 'Electricity DISCOM', focus: 'UTILITY', customMetrics: ['Grid Stability', 'Transformer Health'] },
-  { id: 'JAL_NIGAM', name: 'Water (Jal Nigam)', focus: 'MUNICIPAL', customMetrics: ['Purity Index', 'Leakage %'] },
-  { id: 'MUN_CORP', name: 'Municipal Corp', focus: 'MUNICIPAL', customMetrics: ['Waste Density', 'Street Light Uptime'] }
-];
-
-export const SUB_CATEGORIES = ['INSTALLATION', 'REPAIR', 'MAINTENANCE', 'REPLACEMENT'];
-
-export const PROBLEM_TEMPLATES = [
-  { title: "Device not working", severity: 7, tier: SLATier.SILVER, bom: ['Standard Tool Kit'] },
-  { title: "Intermittent operation", severity: 4, tier: SLATier.BRONZE, bom: ['Diagnostic Kit'] },
-  { title: "Installation required", severity: 3, tier: SLATier.BRONZE, bom: ['Drill', 'Mounts'] },
-  { title: "Strange noise/smell", severity: 8, tier: SLATier.GOLD, bom: ['Gas Sensor', 'Multimeter'] },
-  { title: "Performance issues", severity: 3, tier: SLATier.BRONZE, bom: ['Standard Kit'] },
-  { title: "Power/Charging issue", severity: 6, tier: SLATier.SILVER, bom: ['Power Probe'] },
-  { title: "Water leakage", severity: 9, tier: SLATier.GOLD, bom: ['Leak Sealant', 'Pipe Wrench'] },
-  { title: "Physical damage", severity: 5, tier: SLATier.SILVER, bom: ['Replacement Housing'] },
-  { title: "Routine servicing", severity: 2, tier: SLATier.BRONZE, bom: ['Cleaning Kit'] },
-  { title: "Complete replacement", severity: 4, tier: SLATier.SILVER, bom: ['New Unit'] },
-  { title: "Overheating problem", severity: 8, tier: SLATier.GOLD, bom: ['Thermal Paste', 'Fan'] },
-  { title: "Connectivity issue", severity: 5, tier: SLATier.SILVER, bom: ['Network Tester'] },
-  { title: "Unresponsive system", severity: 6, tier: SLATier.SILVER, bom: ['Reset Tool'] },
-  { title: "Auto-shutdown", severity: 7, tier: SLATier.SILVER, bom: ['Volt Tester'] },
-  { title: "Error indicators", severity: 5, tier: SLATier.SILVER, bom: ['Manual Override'] },
-  { title: "Upgrade requested", severity: 2, tier: SLATier.BRONZE, bom: ['Modular Upgrade Parts'] },
-  { title: "Safety concern", severity: 10, tier: SLATier.GOLD, bom: ['Hazmat Kit', 'First Aid'] },
-  { title: "Improper fitting", severity: 5, tier: SLATier.SILVER, bom: ['Precision Level'] },
-  { title: "Loose wiring/parts", severity: 8, tier: SLATier.GOLD, bom: ['Crimping Tool'] },
-  { title: "Inspection only", severity: 1, tier: SLATier.BRONZE, bom: ['Inspection Camera'] }
+const PROBLEM_VARIANTS = [
+  "Repair & Fix", "Installation Service", "Maintenance Check", "Replacement Service",
+  "Urgent Diagnostics", "Deep Inspection", "Part Faulty", "Periodic Servicing"
 ];
 
 export const generateProblems = (): Problem[] => {
   const problems: Problem[] = [];
-  let idCounter = 1;
+  let globalIdCounter = 1;
 
   CATEGORIES.forEach(cat => {
-    SUB_CATEGORIES.forEach(sub => {
-      PROBLEM_TEMPLATES.forEach((tpl, i) => {
-        problems.push({
-          id: `PROB_${idCounter.toString().padStart(4, '0')}`,
-          ontologyId: `ONT_${cat.id.slice(0, 3)}_${sub.slice(0, 3)}_${idCounter.toString().padStart(3, '0')}`,
-          category: cat.name,
-          subCategory: sub,
-          title: `${tpl.title} (${cat.name})`,
-          basePrice: 150 + (i * 15),
-          maxPrice: 600 + (i * 30),
-          providerRole: cat.providerType,
-          severity: tpl.severity,
-          slaTier: tpl.tier,
-          description: `Enterprise-grade ${sub.toLowerCase()} for ${cat.name.toLowerCase()} - ${tpl.title.toLowerCase()}. Optimized for ${tpl.tier} SLA compliance.`,
-          addons: [
-            { id: `add_${idCounter}_1`, name: 'Extended Warranty', price: 199 },
-            { id: `add_${idCounter}_2`, name: 'Priority Visit', price: 99 }
-          ],
-          equipmentBOM: tpl.bom
-        });
-        idCounter++;
+    for (let i = 1; i <= 80; i++) {
+      const variant = PROBLEM_VARIANTS[i % PROBLEM_VARIANTS.length];
+      const basePrice = 200 + (Math.floor(Math.random() * 50) * 10);
+      
+      problems.push({
+        id: `PROB_${globalIdCounter.toString().padStart(4, '0')}`,
+        ontologyId: `${cat.id.slice(0, 3)}_${i.toString().padStart(3, '0')}`,
+        category: cat.name,
+        subCategory: i <= 40 ? 'Residential' : 'Commercial',
+        title: `${cat.name} ${variant} #${i}`,
+        basePrice,
+        maxPrice: basePrice + 1000,
+        addons: [
+          { id: `add_${globalIdCounter}_1`, name: "Premium Spare Parts", price: 350 },
+          { id: `add_${globalIdCounter}_2`, name: "Consumable Materials", price: 150 },
+          { id: `add_${globalIdCounter}_3`, name: "Express Completion", price: 99 }
+        ],
+        description: `Certified doorstep support for all ${cat.name.toLowerCase()} related issues. Professional tools and standardized pricing applied.`,
+        providerRole: cat.providerType,
+        severity: (i % 5) + 1,
+        slaTier: i % 3 === 0 ? SLATier.GOLD : i % 3 === 1 ? SLATier.SILVER : SLATier.BRONZE,
       });
-    });
+      globalIdCounter++;
+    }
   });
 
   return problems;
 };
 
-export const PLATFORM_FEE = 10;
-export const VISIT_CHARGE = 99;
-
-export const EXECUTION_ROADMAP = {
-  phases: [
-    {
-      id: "PHASE_1",
-      title: "Foundation",
-      timeline: "Month 0-6",
-      goal: "One city, zero chaos",
-      items: ["Tier-0 Priorities Fully Implemented", "1-2 Core Categories", "100-300 Providers", "COD Only"]
-    },
-    {
-      id: "PHASE_2",
-      title: "Market Fit",
-      timeline: "Month 6-12",
-      goal: "Prove repeatability",
-      items: ["5-7 Service Categories", "Insurance Opt-in", "Rule-based AI Dispatch", "City Command Center"]
-    },
-    {
-      id: "PHASE_3",
-      title: "Scale",
-      timeline: "Month 12-24",
-      goal: "Default city OS",
-      items: ["5-10 Cities", "Predictive Maintenance", "EMI Bundles", "PSU Paid Contracts"]
-    },
-    {
-      id: "PHASE_4",
-      title: "National",
-      timeline: "Month 24-36",
-      goal: "Infra-company status",
-      items: ["National Command Center", "Multi-state Rules", "ML Models", "Smart City Integration"]
-    }
-  ],
-  antiFeatures: [
-    "In-app chat without moderation",
-    "Free-text pricing by provider",
-    "Too many categories too early",
-    "Social feeds / comments",
-    "Discounts wars",
-    "Crypto / token nonsense"
-  ],
-  killStrategies: [
-    {
-      scenario: "Provider Collusion",
-      risk: "Cash bypass, fake jobs",
-      strategy: "Random audits, Wallet freeze, National blacklist"
-    },
-    {
-      scenario: "SLA Collapse",
-      risk: "Govt contract loss",
-      strategy: "Auto-escalation, Backup provider pools, Penalty automation"
-    }
-  ]
-};
-
-export const ORG_CHART = [
-  { role: 'CEO / Founder', level: 1, department: 'Leadership', status: 'FILLED' },
-  { role: 'CTO', level: 1, department: 'Tech', status: 'FILLED' },
-  { role: 'Head of Govt Programs', level: 2, department: 'Govt', status: 'OPEN' },
-  { role: 'Data / AI Lead', level: 2, department: 'Intelligence', status: 'OPEN' },
-  { role: 'City Manager (Noida)', level: 3, department: 'Operations', status: 'FILLED' },
-  { role: 'Compliance Officer', level: 2, department: 'Legal', status: 'FILLED' }
+export const PITCH_SLIDES = [
+  { id: 1, title: 'The Problem', content: 'Local services in India are chaotic. Price cheating, low quality, and lack of trust make simple household repairs a nightmare.' },
+  { id: 2, title: 'The Solution', content: 'DoorStep Pro: A price-controlled, problem-based booking platform. We use "Problem Ontologies" to lock pricing before the provider arrives.' },
+  { id: 3, title: 'Product Suite', content: 'Native-feel User App for booking, Provider App for execution/billing, and an Omniscient Admin Panel for governance.' },
+  { id: 4, title: 'Standardized Flow', content: 'User selects a specific problem -> Nearest Provider is matched -> Fixed Base Price is locked -> Transparent Billing through App.' },
+  { id: 5, title: 'Unique Moat', content: 'Anti-Cheat Billing: Providers cannot manually enter prices. They select from pre-approved material add-ons with system-enforced caps.' },
+  { id: 6, title: 'Market Opportunity', content: 'The Indian home services market is valued at $50B+ and is highly fragmented. Digitization is the only way to scale.' },
+  { id: 7, title: 'Revenue Model', content: 'Flat ₹10 platform fee per booking. Featured provider subscriptions. B2B AMC contracts for residential societies.' },
+  { id: 8, title: 'Unit Economics', content: 'High frequency, low customer acquisition cost via hyperlocal density. Profitable from the first city launch.' },
+  { id: 9, title: 'Unmatched Scalability', content: 'Starting with 25 categories and 2000 problems. Engineered to scale to 100+ categories using AI-driven problem taxonomy.' },
+  { id: 10, title: 'Trust & Safety', content: 'Mandatory KYC for providers, call masking, and evidence-based dispute resolution engine.' },
+  { id: 11, title: 'Growth Roadmap', content: 'Phase 1: 5 Tier-1 Cities. Phase 2: National expansion. Phase 3: AI-driven predictive maintenance services.' },
+  { id: 12, title: 'The Ask', content: 'Seeking Seed Funding to optimize the matching engine, scale the problem registry, and launch in the first 3 metro cities.' }
 ];
 
-export const theme = {
-  colors: {
-    primary: "#0A2540",
-    accent: "#00D4FF",
-    success: "#16A34A",
-    danger: "#DC2626",
-    background: "#F8FAFC"
+export const SOP_LIST: SOPItem[] = [
+  {
+    id: 'SOP_001',
+    title: 'Daily Operations (9:00 AM)',
+    category: 'Ops',
+    content: 'Checklist to ensure node stability and city-wide performance every morning.',
+    steps: [
+      'Backend health check via /health endpoint verification.',
+      'Review yesterday\'s bookings vs SLA breach records.',
+      'Identify unassigned bookings from night shift.',
+      'Check provider online count against city density target.'
+    ]
   },
-  radius: {
-    card: "1.5rem",
-    button: "1rem"
+  {
+    id: 'SOP_002',
+    title: 'Provider Price Violation',
+    category: 'Billing',
+    content: 'Protocols to follow when a provider attempts to charge more than the system-calculated Max Price.',
+    steps: [
+      'Automatic Flagging: System locks the billing module if total exceeds Max Price.',
+      'Manual Review: Admin contacts the provider to verify if unexpected material was used.',
+      'Resolution: If valid, admin can increase the limit temporarily; otherwise, provider is warned or banned.'
+    ]
+  },
+  {
+    id: 'SOP_003',
+    title: 'Provider Onboarding Rule',
+    category: 'Ops',
+    content: 'Standard verification flow for field boys onboarding new service partners.',
+    steps: [
+      'Identity Check: Mobile OTP verification + Phone Number validation.',
+      'Skill Verification: Selection of core categories (Max 3).',
+      'Test Booking: Send a mock job to verify GPS and arrival workflow.',
+      'Final Approval: Switch status from PENDING to ACTIVE.'
+    ]
+  },
+  {
+    id: 'SOP_004',
+    title: 'Emergency Response Protocol',
+    category: 'Ops',
+    content: 'How to handle Critical Severity jobs that are stalled in the "ASSIGNED" status for >30 mins.',
+    steps: [
+      'Identify critical leads in the Command Center.',
+      'Call the assigned provider immediately to check arrival status.',
+      'If provider is unresponsive, force reassign the job to the next nearest Gold-tier partner.'
+    ]
+  },
+  {
+    id: 'SOP_005',
+    title: 'Customer Refund Policy',
+    category: 'Support',
+    content: 'Handling refund requests for failed or unsatisfactory services.',
+    steps: [
+      'Verify service completion status and payment proof (UPI/COD).',
+      'For UPI failures, initiate automated refund via Payment Gateway Node.',
+      'For poor quality, offer free re-service or platform credit via Wallet Module.'
+    ]
   }
-};
+];
+
+export const EXPANSION_ROADMAP: ExpansionChecklist[] = [
+  {
+    phase: 'Phase 1: City Launch',
+    days: '0-30 Days',
+    focus: 'Onboarding & Supply',
+    tasks: [
+      'Hire 2 field boys for ground onboarding.',
+      'Visit local electrical/plumbing wholesale hubs.',
+      'Onboard first 30 verified providers with ₹0 platform fee hook.',
+      'Launch Society WhatsApp marketing campaign.'
+    ]
+  },
+  {
+    phase: 'Phase 2: Scale Node',
+    days: '30-60 Days',
+    focus: 'Demand & Trust',
+    tasks: [
+      'Reach 150 bookings/day milestone.',
+      'Implement trust-score based provider dispatch.',
+      'Roll out "Price Locked" promise in local Facebook groups.',
+      'Enable automated wallet settlements for partners.'
+    ]
+  },
+  {
+    phase: 'Phase 3: Stabilization',
+    days: '60-90 Days',
+    focus: 'Efficiency & Margin',
+    tasks: [
+      'Enforce flat ₹10 platform fee across all jobs.',
+      'Identify and prune low-performing providers (<3.5 stars).',
+      'Optimize AI dispatch for reduced ETA.',
+      'Prepare playbook for City 2 expansion.'
+    ]
+  }
+];
+
+export const MASTER_PROBLEM_CATEGORIES: ProblemCategoryCoverage[] = CATEGORIES.map(cat => ({
+  id: cat.id,
+  name: cat.name,
+  problemCount: 80,
+  solvedPercentage: 92 + Math.floor(Math.random() * 8),
+  impact: `Direct impact on daily ${cat.name.toLowerCase()} efficiency.`
+}));
+
+export const EXECUTION_CHECKLIST: WeeklyChecklist[] = [
+  { week: 1, focus: 'Engine Design', tasks: ['Booking Engine', 'Billing Logic', 'Wallet API'], status: 'COMPLETED' },
+  { week: 2, focus: 'Problem Seeding', tasks: ['2000 Problem Taxonomy', 'Price Caps Implementation'], status: 'COMPLETED' },
+  { week: 3, focus: 'Quality Control', tasks: ['Dispute Dashboard', 'Provider Banning System'], status: 'IN_PROGRESS' }
+];
+
+export const STATE_CONFIGS: StateConfig[] = [
+  { id: 'DL', name: 'Delhi NCR', slaModifiers: { [SLATier.GOLD]: 30, [SLATier.SILVER]: 120, [SLATier.BRONZE]: 480 }, pricingCaps: { 'Electrical': 2000 }, language: 'Hindi/English', complianceLevel: 'STANDARD' }
+];
+
+export const PSU_TYPES: PSUTypeConfig[] = [
+  { id: 'MUNI', name: 'Municipal Services', focus: 'MUNICIPAL', customMetrics: ['Cleanliness Index'] }
+];

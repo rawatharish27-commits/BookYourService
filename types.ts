@@ -1,4 +1,5 @@
 
+
 export enum UserRole {
   USER = 'USER',
   PROVIDER = 'PROVIDER',
@@ -7,43 +8,169 @@ export enum UserRole {
   B2B = 'B2B'
 }
 
+export enum VerificationStatus {
+  UNVERIFIED = 'UNVERIFIED',
+  OTP_VERIFIED = 'OTP_VERIFIED',
+  PENDING_ID = 'PENDING_ID',
+  ID_VERIFIED = 'ID_VERIFIED',
+  BANK_VERIFIED = 'BANK_VERIFIED',
+  ACTIVE = 'ACTIVE',
+  REJECTED = 'REJECTED'
+}
+
+export enum WebhookStatus {
+  RECEIVED = 'RECEIVED',
+  PROCESSING = 'PROCESSING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED'
+}
+
 export enum BookingStatus {
-  REQUESTED = 'REQUESTED',
-  ACCEPTED = 'ACCEPTED',
+  CREATED = 'CREATED',
+  VERIFIED = 'VERIFIED',
+  ASSIGNED = 'ASSIGNED',
   IN_PROGRESS = 'IN_PROGRESS',
+  ON_HOLD = 'ON_HOLD',
   COMPLETED = 'COMPLETED',
+  CLOSED = 'CLOSED',
   CANCELLED = 'CANCELLED',
   FLAGGED = 'FLAGGED',
-  ESCALATED = 'ESCALATED'
+  ESCALATED = 'ESCALATED',
+  DISPUTED = 'DISPUTED'
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED'
+}
+
+export enum PaymentMethod {
+  COD = 'COD',
+  UPI = 'UPI',
+  WALLET = 'WALLET',
+  APPLE_PAY = 'APPLE_PAY',
+  CARD = 'CARD'
 }
 
 export enum SLATier {
-  GOLD = 'GOLD', // 30 mins (Emergency/Critical)
-  SILVER = 'SILVER', // 2 hours (Standard)
-  BRONZE = 'BRONZE' // 24 hours (Routine)
+  GOLD = 'GOLD', // 30 mins
+  SILVER = 'SILVER', // 2 hours
+  BRONZE = 'BRONZE' // 24 hours
 }
 
-export interface StateConfig {
+export enum RiskLevel {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
+}
+
+// Added FraudType enum to resolve import errors in AdminModule.tsx and FraudDetectionEngine.ts
+export enum FraudType {
+  MULTI_ACCOUNT_SAME_ID = 'MULTI_ACCOUNT_SAME_ID',
+  PRICE_TAMPERING = 'PRICE_TAMPERING',
+  HIGH_CANCELLATION = 'HIGH_CANCELLATION'
+}
+
+export interface RegionConfig {
   id: string;
   name: string;
-  slaModifiers: Record<SLATier, number>; // Duration in minutes
-  pricingCaps: Record<string, number>; // Category to max price
-  language: string;
-  complianceLevel: 'STANDARD' | 'STRICT' | 'SOVEREIGN';
+  currency: string;
+  platformFee: number;
+  taxRate: number;
+  timezone: string;
+  status: 'ACTIVE' | 'PILOT' | 'PLANNED';
+  infraCostPerBooking: number;
 }
 
-export interface PSUTypeConfig {
+export interface InfraCostBreakdown {
+  compute: number;
+  database: number;
+  otp: number;
+  maps: number;
+  logging: number;
+  total: number;
+  perBooking: number;
+}
+
+export interface RevenueForecast {
+  month: string;
+  predictedBookings: number;
+  predictedRevenue: number;
+  confidence: number;
+  growthRate: number;
+}
+
+export interface ProviderRank {
+  score: number;
+  tier: 'PREMIER' | 'STANDARD' | 'RESTRICTED';
+  reasons: string[];
+  lastCalculated: string;
+}
+
+export interface VendorWebhook {
   id: string;
-  name: string;
-  focus: 'UTILITY' | 'INFRA' | 'SOCIAL' | 'MUNICIPAL';
-  customMetrics: string[];
+  vendor: 'IDFY' | 'CASHFREE' | 'FIREBASE';
+  eventType: string;
+  externalRefId: string;
+  payload: any;
+  status: WebhookStatus;
+  retryCount: number;
+  createdAt: string;
+  processedAt?: string;
 }
 
-export interface AuditLogEntry {
-  status: BookingStatus;
-  timestamp: string;
-  note: string;
-  actor: string;
+export interface TrustSafetyKPI {
+  activeRiskProviders: number;
+  suspendedToday: number;
+  fraudSignalsDay: number;
+  kycSuccessRate: number;
+  avgVerificationTime: string;
+  vendorFailureRate: number;
+  systemTrustScore: number;
+  complaintsPer100: number;
+}
+
+export interface KycDocument {
+  id: string;
+  providerId: string;
+  type: 'AADHAAR' | 'PAN' | 'SELFIE';
+  fileUrl: string;
+  extractedName?: string;
+  matchScore?: number;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+}
+
+export interface BankAccount {
+  id: string;
+  providerId: string;
+  upiId?: string;
+  bankName?: string;
+  last4?: string;
+  verified: boolean;
+}
+
+export interface FraudSignal {
+  id: string;
+  providerId: string;
+  type: FraudType;
+  severity: number;
+  description: string;
+  evidence: any;
+  createdAt: string;
+  mlScore?: number;
+}
+
+export interface VerificationLog {
+  id: string;
+  entityType: 'USER' | 'PROVIDER';
+  entityId: string;
+  checkType: 'OTP' | 'AADHAAR' | 'PAN' | 'BANK';
+  result: 'SUCCESS' | 'FAIL';
+  details: string;
+  createdAt: string;
 }
 
 export interface Addon {
@@ -68,45 +195,122 @@ export interface Problem {
   equipmentBOM?: string[];
 }
 
-export interface Booking {
+export interface SystemAlert {
   id: string;
-  userId: string;
-  userName: string;
-  providerId?: string;
-  providerName?: string;
-  problemId: string;
-  problemTitle: string;
-  ontologyId: string;
-  category: string;
-  subCategory: string;
-  status: BookingStatus;
-  createdAt: string;
-  scheduledTime?: string;
-  slaDeadline?: string;
-  slaTier: SLATier;
-  severity: number;
-  basePrice: number;
-  selectedAddons: Addon[];
-  visitCharge: number;
-  totalAmount: number;
-  platformFee: number;
-  providerEarnings: number;
-  address: string;
-  wardId: string;
-  isFraudRisk?: boolean;
-  history: AuditLogEntry[];
+  timestamp: string;
+  type: 'PRICE_VIOLATION' | 'SLA_BREACH' | 'BANNED_ACCESS' | 'PAYMENT_FAILURE';
+  message: string;
+  severity: RiskLevel;
+  resolved: boolean;
 }
 
-export interface User {
+export interface SOPItem {
+  id: string;
+  title: string;
+  category: 'Ops' | 'Safety' | 'Billing' | 'Support';
+  content: string;
+  steps: string[];
+}
+
+export interface ExpansionChecklist {
+  phase: string;
+  days: string;
+  focus: string;
+  tasks: string[];
+}
+
+export interface KYCData {
+  aadhaarNumber?: string;
+  aadhaarUrl?: string;
+  panNumber?: string;
+  panUrl?: string;
+  bankAccount?: string;
+  ifscCode?: string;
+  upiId?: string;
+  selfieUrl?: string;
+  verificationNotes?: string;
+  submittedAt?: string;
+}
+
+export interface UserEntity {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  wallet: number;
-  trustScore: number;
-  isKycVerified: boolean;
-  skills?: string[];
-  rating?: number;
+  phone: string;
+  role_id: UserRole;
+  state_code: string;
+  is_active: boolean;
+  wallet_balance: number;
+  trust_score: number;
+  created_at: string;
+  status?: 'ACTIVE' | 'BANNED' | 'SUSPENDED';
+  verification_status: VerificationStatus;
+  kyc_data?: KYCData;
+  deviceId?: string;
+  rank?: ProviderRank;
+  region_id?: string;
+}
+
+export interface ServiceRequestEntity {
+  id: string;
+  user_id: string;
+  service_id: string;
+  provider_id?: string;
+  status: BookingStatus;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  state_code: string;
+  ward_id: string;
+  created_at: string;
+  closed_at?: string;
+  total_amount: number;
+  sla_deadline?: string;
+  escalation_level?: number;
+  risk_score?: number;
+  risk_level?: RiskLevel;
+  risk_factors?: string[];
+  predicted_delay_prob?: number;
+  scheduledTime?: string;
+  selectedAddons?: Addon[];
+  providerEarnings?: number;
+  payment_method?: PaymentMethod;
+  payment_status?: PaymentStatus;
+  region_id?: string;
+}
+
+export interface AIRiskAssessment {
+  score: number;
+  level: RiskLevel;
+  factors: string[];
+  predicted_delay_prob: number;
+}
+
+export interface AuditLogEntity {
+  id: string;
+  user_id: string;
+  action: string;
+  entity: string;
+  timestamp: string;
+  ip_address: '127.0.0.1';
+  metadata: string;
+  severity: 'INFO' | 'WARN' | 'ERROR';
+}
+
+export interface Booking extends ServiceRequestEntity {
+  userName: string;
+  problemTitle: string;
+  category: string;
+  subCategory: string;
+  ontologyId: string;
+  slaTier: SLATier;
+  severity: number;
+  basePrice: number;
+  maxPrice?: number;
+  selectedAddons: Addon[];
+  visitCharge: number;
+  platformFee: number;
+  providerEarnings: number;
+  address: string;
+  history: any[];
 }
 
 export interface Category {
@@ -114,4 +318,43 @@ export interface Category {
   name: string;
   icon: string;
   providerType: string;
+}
+
+export interface InfraMetric {
+  label: string;
+  value: number;
+  unit: string;
+  trend: 'up' | 'down' | 'stable';
+  status: 'HEALTHY' | 'WARNING' | 'CRITICAL';
+}
+
+export interface ProblemCategoryCoverage {
+  id: string;
+  name: string;
+  problemCount: number;
+  solvedPercentage: number;
+  impact: string;
+}
+
+export interface WeeklyChecklist {
+  week: number;
+  focus: string;
+  tasks: string[];
+  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
+}
+
+export interface StateConfig {
+  id: string;
+  name: string;
+  slaModifiers: Partial<Record<SLATier, number>>;
+  pricingCaps: Record<string, number>;
+  language: string;
+  complianceLevel: string;
+}
+
+export interface PSUTypeConfig {
+  id: string;
+  name: string;
+  focus: string;
+  customMetrics: string[];
 }
