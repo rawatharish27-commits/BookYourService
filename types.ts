@@ -5,10 +5,18 @@ export enum UserRole {
   ADMIN = 'ADMIN'
 }
 
+export enum AdminRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  OPS_MANAGER = 'OPS_MANAGER',
+  SUPPORT_AGENT = 'SUPPORT_AGENT'
+}
+
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
-  PENDING_OTP = 'PENDING_OTP'
+  PENDING_OTP = 'PENDING_OTP',
+  PROBATION = 'PROBATION',
+  RETRAINING = 'RETRAINING'
 }
 
 export enum ProviderStatus {
@@ -24,7 +32,8 @@ export enum VerificationStatus {
   BANK_PENDING = 'BANK_PENDING',
   ADMIN_APPROVED = 'ADMIN_APPROVED',
   ACTIVE = 'ACTIVE',
-  REJECTED = 'REJECTED'
+  REJECTED = 'REJECTED',
+  REVERIFICATION_REQUIRED = 'REVERIFICATION_REQUIRED'
 }
 
 export enum BookingStatus {
@@ -50,28 +59,46 @@ export enum SLATier {
   GOLD = 'GOLD'
 }
 
+export enum PaymentMethod {
+  UPI = 'UPI',
+  COD = 'COD',
+  CARD = 'CARD'
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILURE = 'FAILURE',
+  REFUNDED = 'REFUNDED'
+}
+
+export enum ComplaintSeverity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
+}
+
+export enum FraudType {
+  PRICE_TAMPERING = 'PRICE_TAMPERING',
+  CANCELLATION_VELOCITY = 'CANCELLATION_VELOCITY',
+  ACCOUNT_SHARING = 'ACCOUNT_SHARING'
+}
+
 export interface Addon {
   id: string;
   name: string;
   price: number;
 }
 
-export interface RatingEntry {
-  stars: number;
-  timestamp: string;
-  comment?: string;
-  tags?: string[];
-}
-
-/** 
- * Prisma Model: User
- */
 export interface User {
   id: string;
   phone: string;
   name: string;
   role: UserRole;
+  adminRole?: AdminRole;
   status: UserStatus;
+  providerStatus?: ProviderStatus;
   verificationStatus: VerificationStatus;
   city: string;
   state_code?: string;
@@ -81,63 +108,50 @@ export interface User {
     aadhaarNumber?: string;
     panNumber?: string;
     bankAccountNumber?: string;
+    upiId?: string;
     documentsUploaded: boolean;
   };
   fraudScore: number;
+  abuseScore: number;
+  qualityScore: number;
+  trustBadge?: 'BRONZE' | 'SILVER' | 'GOLD' | 'ELITE';
+  isProbation: boolean;
+  jobCount: number;
+  savedAddresses?: string[];
   rank?: number;
+  deviceId?: string;
+  lastLogin?: string;
+  mfaEnabled?: boolean;
 }
 
-export type UserEntity = User;
-
-/** 
- * Prisma Model: Booking
- */
 export interface Booking {
   id: string;
   userId: string;
-  userName?: string;
   providerId?: string;
   serviceId: string;
   problemTitle: string;
-  category?: string;
-  subCategory?: string;
   status: BookingStatus;
-  priority?: string;
-  state_code?: string;
-  ward_id?: string;
-  created_at?: string;
   createdAt: string;
-  total_amount?: number;
+  assignedAt?: string;
+  acceptedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  slaDeadline: string;
+  isSLABreached: boolean;
   total?: number;
-  visitCharge?: number;
   basePrice: number;
   maxPrice: number;
-  platformFee?: number;
-  providerEarnings?: number;
-  selectedAddons?: any[];
   addons: Addon[];
-  address?: string;
-  ontologyId?: string;
-  slaTier?: SLATier;
-  severity?: number;
-  scheduledTime?: string;
   city: string;
   rating?: number;
+  review?: string;
+  complaintId?: string;
   payment_status?: PaymentStatus;
   payment_method?: PaymentMethod;
-}
-
-/** 
- * Prisma Model: WalletLedger (Append-only)
- */
-export interface WalletLedger {
-  id: string;
-  userId: string;
-  bookingId: string;
-  amount: number;
-  type: LedgerType;
-  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'REFUND';
-  timestamp: string;
+  cancelProbability?: number;
+  scheduledAt?: string;
+  slaTier: SLATier;
+  category?: string;
 }
 
 export interface AuditLog {
@@ -148,6 +162,24 @@ export interface AuditLog {
   entityId: string;
   metadata?: any;
   timestamp: string;
+}
+
+export interface WalletLedger {
+  id: string;
+  userId: string;
+  bookingId?: string;
+  amount: number;
+  type: LedgerType;
+  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'REFUND' | 'PENALTY' | 'WITHDRAWAL';
+  timestamp: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  providerType: string;
+  isEnabled: boolean;
 }
 
 export interface Problem {
@@ -166,13 +198,6 @@ export interface Problem {
   isEnabled: boolean;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  providerType: string;
-}
-
 export interface SOPItem {
   id: string;
   title: string;
@@ -181,22 +206,63 @@ export interface SOPItem {
   steps: string[];
 }
 
-export enum PaymentMethod {
-  UPI = 'UPI',
-  COD = 'COD',
-  CARD = 'CARD'
+export interface PitchSlide {
+  id: number;
+  title: string;
+  content: string;
 }
 
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  FAILURE = 'FAILURE',
-  REFUNDED = 'REFUNDED'
+export interface Complaint {
+  id: string;
+  bookingId: string;
+  userId: string;
+  category: string;
+  description: string;
+  status: 'OPEN' | 'RESOLVED';
+  severity: ComplaintSeverity;
+  createdAt: string;
 }
 
-export interface AuditLogEntity {
-  severity: 'INFO' | 'WARNING' | 'ERROR';
+export interface Incident {
+  id: string;
+  bookingId?: string;
+  reportedBy: string;
+  type: 'THEFT' | 'HARASSMENT' | 'DAMAGE' | 'OTHER';
+  description: string;
+  status: 'INVESTIGATING' | 'RESOLVED';
+  severity: 'CRITICAL';
+  createdAt: string;
 }
 
-export type FraudSignal = any;
-export type FraudType = any;
+export interface CityConfig {
+  code: string;
+  name: string;
+  isEnabled: boolean;
+  platformFee: number;
+  minProviderBalance: number;
+}
+
+export interface SystemConfig {
+  aiKillSwitch: boolean;
+  autoMatchingEnabled: boolean;
+  globalPlatformFee: number;
+}
+
+export interface Penalty {
+  id: string;
+  providerId: string;
+  amount: number;
+  reason: string;
+  bookingId?: string;
+  timestamp: string;
+}
+
+export interface FraudSignal {
+  id: string;
+  userId: string;
+  type: FraudType;
+  score: number;
+  description: string;
+  timestamp: string;
+  isDismissed: boolean;
+}

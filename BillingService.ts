@@ -1,63 +1,80 @@
 
 import { db } from './DatabaseService';
-import { Addon, LedgerType, BookingStatus } from './types';
+import { Addon, LedgerType, BookingStatus, PaymentStatus } from './types';
+import { PLATFORM_FEE } from './constants';
 
 class BillingService {
-  private readonly PLATFORM_FEE = 10;
+  
+  validateAddons(bookingId: string, addons: Addon[]): { valid: boolean; total: number; error?: string } {
+    const b = db.getBookings().find(x => x.id === bookingId);
+    if (!b) return { valid: false, total: 0, error: 'Booking not found' };
 
-  /**
-   * Step 8: Price Lock Validation
-   */
-  async generateBill(bookingId: string, addons: Addon[]): Promise<boolean> {
-    const bookings = db.getBookings();
-    const b = bookings.find(x => x.id === bookingId);
-    if (!b) return false;
-
-    const addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
-    const finalTotal = b.basePrice + addonsTotal;
-
-    // PRICE LOCK: Check against Ontology Max Price
-    if (finalTotal > b.maxPrice) {
-      console.warn(`[BILLING-BLOCK] Price Violation! Total ₹${finalTotal} exceeds Max ₹${b.maxPrice}`);
-      return false; 
+    if ([BookingStatus.COMPLETED, BookingStatus.PAID].includes(b.status)) {
+      return { valid: false, total: 0, error: 'Job already settled.' };
     }
 
-    // Step 9: Wallet Ledger (Append-only)
-    await this.processSettlement(b.id, b.providerId!, finalTotal);
+    const total = b.basePrice + addons.reduce((sum, a) => sum + a.price, 0);
 
-    await db.updateBooking(bookingId, { 
-      total: finalTotal, 
-      addons,
-      status: BookingStatus.PAID 
-    });
+    if (total > b.maxPrice) {
+      return { valid: false, total, error: `Exceeds price-lock cap of ₹${b.maxPrice}.` };
+    }
 
-    return true;
+    return { valid: true, total };
   }
 
-  private async processSettlement(bookingId: string, providerId: string, total: number) {
-    const payout = total - this.PLATFORM_FEE;
+  async generateBill(bookingId: string, addons: Addon[]): Promise<{ success: boolean; error?: string }> {
+    const b = db.getBookings().find(x => x.id === bookingId);
+    if (!b || b.status !== BookingStatus.IN_PROGRESS) {
+      return { success: false, error: "Invalid job state for billing." };
+    }
 
-    // Append Provider Payout
-    await db.appendLedger({
-      id: `L_${Date.now()}_P`,
-      userId: providerId,
-      bookingId,
-      amount: payout,
-      type: LedgerType.CREDIT,
-      category: 'SERVICE_PAYOUT',
-      timestamp: new Date().toISOString()
-    });
+    const validation = this.validateAddons(bookingId, addons);
+    if (!validation.valid) return { success: false, error: validation.error };
 
-    // Append Platform Revenue
-    await db.appendLedger({
-      id: `L_${Date.now()}_A`,
-      userId: 'ADMIN_ROOT',
-      bookingId,
-      amount: this.PLATFORM_FEE,
-      type: LedgerType.CREDIT,
-      category: 'PLATFORM_FEE',
-      timestamp: new Date().toISOString()
-    });
+    db.beginTransaction();
+    try {
+      const finalTotal = validation.total;
+      const payout = finalTotal - PLATFORM_FEE;
+      const timestamp = new Date().toISOString();
+
+      // 1. Update Booking
+      await db.updateBooking(bookingId, { 
+        total: finalTotal, 
+        addons,
+        status: BookingStatus.COMPLETED,
+        payment_status: PaymentStatus.SUCCESS,
+        completedAt: timestamp
+      });
+
+      // 2. Partner Payout
+      await db.appendLedger({
+        id: `L_${Date.now()}_P`,
+        userId: b.providerId!,
+        bookingId,
+        amount: payout,
+        type: LedgerType.CREDIT,
+        category: 'SERVICE_PAYOUT',
+        timestamp
+      });
+
+      // 3. Platform Revenue
+      await db.appendLedger({
+        id: `L_${Date.now()}_F`,
+        userId: 'ADMIN_ROOT',
+        bookingId,
+        amount: PLATFORM_FEE,
+        type: LedgerType.CREDIT,
+        category: 'PLATFORM_FEE',
+        timestamp
+      });
+
+      await db.logAction('BILLING', 'SETTLEMENT', 'Booking', bookingId, { total: finalTotal });
+      db.commit();
+      return { success: true };
+    } catch (e) {
+      db.rollback();
+      return { success: false, error: "Transactional settlement failed." };
+    }
   }
 }
 

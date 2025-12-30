@@ -1,36 +1,37 @@
 
-import { PaymentMethod, PaymentStatus, BookingStatus } from './types';
+import { PaymentMethod, PaymentStatus, BookingStatus, LedgerType } from './types';
 import { db } from './DatabaseService';
 
 class PaymentService {
-  /**
-   * Simulates a UPI Payment Intent generation and verification.
-   */
+  private canProcessPayment(bookingId: string): boolean {
+    const b = db.getBookings().find(x => x.id === bookingId);
+    if (!b) return false;
+    if (b.status === BookingStatus.CANCELLED) return false;
+    if (b.payment_status === PaymentStatus.SUCCESS) return false;
+    return true;
+  }
+
   async processUPI(amount: number, bookingId: string): Promise<boolean> {
+    if (!this.canProcessPayment(bookingId)) return false;
+
     console.log(`Generating UPI Intent for ₹${amount} (Booking: ${bookingId})`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const isSuccess = Math.random() > 0.05; 
+    const isSuccess = Math.random() > 0.02; 
     
     if (isSuccess) {
-      await db.updateRequest(bookingId, { 
+      await db.updateBooking(bookingId, { 
         payment_status: PaymentStatus.SUCCESS,
         payment_method: PaymentMethod.UPI 
       });
       await db.audit('USER', 'PAYMENT_SUCCESS', 'Payment', { bookingId, amount, method: 'UPI' });
-    } else {
-      await db.audit('USER', 'PAYMENT_FAILURE', 'Payment', { bookingId, amount, method: 'UPI' }, 'ERROR');
     }
     
     return isSuccess;
   }
 
-  /**
-   * Sets payment to COD (Cash on Delivery)
-   */
   async setCOD(bookingId: string): Promise<void> {
-    await db.updateRequest(bookingId, { 
+    await db.updateBooking(bookingId, { 
       payment_status: PaymentStatus.PENDING,
       payment_method: PaymentMethod.COD 
     });
@@ -38,24 +39,72 @@ class PaymentService {
   }
 
   /**
-   * STORY 9.2 — Refund Handling
+   * HARDENED REFUND ENGINE
+   * Reverses payouts and platform fees in a single atomic block
    */
-  async processRefund(bookingId: string): Promise<boolean> {
-    const requests = await db.getRequests();
-    const req = requests.find(r => r.id === bookingId);
+  async processRefund(bookingId: string): Promise<{ success: boolean; error?: string }> {
+    const req = db.getBookings().find(r => r.id === bookingId);
     
-    if (!req || req.payment_status !== PaymentStatus.SUCCESS) return false;
+    if (!req) return { success: false, error: "Booking node not found." };
+    if (req.payment_status !== PaymentStatus.SUCCESS) return { success: false, error: "Cannot refund unpaid job." };
+    if (req.payment_status === PaymentStatus.REFUNDED) return { success: false, error: "Already refunded." };
 
-    console.log(`Initiating automated refund for Booking: ${bookingId}`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    db.beginTransaction();
+    try {
+      const timestamp = new Date().toISOString();
+      const amountToRefund = req.total || 0;
 
-    await db.updateRequest(bookingId, { 
-      payment_status: PaymentStatus.REFUNDED,
-      status: BookingStatus.CANCELLED
-    });
+      // 1. Credit back the User Hub
+      await db.appendLedger({
+        id: `L_${Date.now()}_REF_USER`,
+        userId: req.userId,
+        bookingId,
+        amount: amountToRefund,
+        type: LedgerType.CREDIT,
+        category: 'REFUND',
+        timestamp
+      });
 
-    await db.audit('SYSTEM', 'REFUND_PROCESSED', 'Payment', { bookingId, amount: req.total_amount || req.total });
-    return true;
+      // 2. Debit the Provider Hub (Recover Payout)
+      if (req.providerId && req.total) {
+        // Assume PLATFORM_FEE was 10 (from constants)
+        const payoutToRecover = req.total - 10;
+        await db.appendLedger({
+          id: `L_${Date.now()}_REF_PRO`,
+          userId: req.providerId,
+          bookingId,
+          amount: payoutToRecover,
+          type: LedgerType.DEBIT,
+          category: 'REFUND',
+          timestamp
+        });
+
+        // 3. Debit the Admin Hub (Recover Fee)
+        await db.appendLedger({
+          id: `L_${Date.now()}_REF_FEE`,
+          userId: 'ADMIN_ROOT',
+          bookingId,
+          amount: 10,
+          type: LedgerType.DEBIT,
+          category: 'REFUND',
+          timestamp
+        });
+      }
+
+      // 4. Update Booking State
+      await db.updateBooking(bookingId, { 
+        payment_status: PaymentStatus.REFUNDED,
+        status: BookingStatus.CANCELLED
+      });
+
+      await db.logAction('SYSTEM', 'REFUND_SETTLED', 'Booking', bookingId, { amount: amountToRefund });
+      
+      db.commit();
+      return { success: true };
+    } catch (e: any) {
+      db.rollback();
+      return { success: false, error: "Refund failed: " + e.message };
+    }
   }
 }
 

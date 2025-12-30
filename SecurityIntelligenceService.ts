@@ -1,5 +1,5 @@
 
-import { AuditLogEntity, FraudSignal, FraudType, UserRole } from './types';
+import { FraudSignal, FraudType, UserRole } from './types';
 import { db } from './DatabaseService';
 
 class SecurityIntelligenceService {
@@ -34,7 +34,8 @@ class SecurityIntelligenceService {
   /**
    * Image 1: API Interactions & Behavior Changes
    */
-  async reportThreat(user_id: string, type: string, description: string, severity: AuditLogEntity['severity'] = 'ERROR') {
+  // Fix: Removed non-existent AuditLogEntity and replaced with string for severity
+  async reportThreat(user_id: string, type: string, description: string, severity: string = 'ERROR') {
     await db.audit(user_id, `THREAT_${type}`, 'SecurityNode', {
       description,
       timestamp: new Date().toISOString()

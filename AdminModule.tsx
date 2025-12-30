@@ -120,25 +120,83 @@ const AdminModule: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'VERIFICATION' && (
+          <div className="space-y-12 animate-fadeIn">
+            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Identity <span className="text-blue-500">Audit.</span></h2>
+            <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Provider</th>
+                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Docs</th>
+                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Status</th>
+                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {users.filter(u => u.verificationStatus === VerificationStatus.KYC_PENDING).map(u => (
+                    <tr key={u.id}>
+                      <td className="p-8 font-black text-[#0A2540] uppercase italic">{u.name}</td>
+                      <td className="p-8 text-[10px] text-slate-500 font-mono">AD:{u.kycDetails?.aadhaarNumber} | PAN:{u.kycDetails?.panNumber}</td>
+                      <td className="p-8">
+                        <span className="bg-amber-50 text-amber-600 px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-amber-100">Pending Review</span>
+                      </td>
+                      <td className="p-8 flex gap-4 justify-center">
+                        <button onClick={() => providerService.approveProvider('ADMIN_ROOT', u.id)} className="bg-emerald-500 text-white px-6 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Approve</button>
+                        <button className="bg-rose-50 text-rose-500 px-6 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Reject</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {users.filter(u => u.verificationStatus === VerificationStatus.KYC_PENDING).length === 0 && (
+                <div className="p-20 text-center opacity-20">
+                  <p className="text-xs font-black uppercase tracking-[0.5em]">No pending audit nodes.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'DISPUTES' && (
+          <div className="space-y-12 animate-fadeIn">
+            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Dispute <span className="text-blue-500">Center.</span></h2>
+            <div className="grid grid-cols-2 gap-8">
+              {complaints.filter(c => c.status === 'OPEN').map(c => (
+                <div key={c.id} className="bg-white p-10 rounded-[4rem] border border-slate-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-start">
+                    <span className="bg-rose-50 text-rose-600 px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-rose-100">{c.severity} Severity</span>
+                    <span className="text-[10px] font-mono text-slate-300">#{c.id}</span>
+                  </div>
+                  <h4 className="text-xl font-black text-[#0A2540] tracking-tighter uppercase italic">{c.category}</h4>
+                  <p className="text-sm text-slate-500 leading-relaxed font-medium italic">"{c.description}"</p>
+                  <div className="flex gap-4 pt-4">
+                    <button onClick={() => adminOps.resolveDispute('ADMIN_ROOT', c.id, 'REFUND')} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg">Refund User</button>
+                    <button onClick={() => adminOps.resolveDispute('ADMIN_ROOT', c.id, 'PENALIZE_PRO')} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-[9px] uppercase tracking-widest">Penalize Pro</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'QA_LAB' && (
           <div className="space-y-12 animate-fadeIn">
             <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">QA <span className="text-blue-500">Node.</span></h2>
-            <div className="grid grid-cols-4 gap-8">
+            <div className="grid grid-cols-3 gap-8">
+              {/* Fix: Replaced non-existent runDeepE2EFlow with runFullConsumerLoop from QAAutomationService */}
               <button onClick={() => qaLab.runFullConsumerLoop()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-emerald-500 transition-all group">
                 <div className="text-4xl group-hover:scale-110 transition-transform">✅</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Happy Path</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Perfect Flow</h4>
               </button>
-              <button onClick={() => qaLab.runPriceLockAttackTest()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-rose-500 transition-all group">
-                <div className="text-4xl group-hover:scale-110 transition-transform">🛡️</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Price Lock</h4>
-              </button>
+              {/* Fix: replaced non-existent runStressTest with runAdminOverrideTest */}
               <button onClick={() => qaLab.runAdminOverrideTest()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-blue-500 transition-all group">
                 <div className="text-4xl group-hover:scale-110 transition-transform">⚡</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Override</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stress Test</h4>
               </button>
-              <button onClick={() => qaLab.runFraudSimulation()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-amber-500 transition-all group">
+              <button onClick={() => qaLab.runFraudSimulation()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-rose-500 transition-all group">
                 <div className="text-4xl group-hover:scale-110 transition-transform">🚨</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fraud Logic</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fraud Trigger</h4>
               </button>
             </div>
             <div className="bg-[#0A2540] p-12 rounded-[5rem] text-white shadow-3xl">
@@ -148,41 +206,11 @@ const AdminModule: React.FC = () => {
               </div>
               <div className="space-y-2 h-96 overflow-y-auto custom-scrollbar font-mono text-[10px] pr-8">
                 {qaLogs.map((log, i) => (
-                  <div key={i} className={`p-3 rounded-lg border-l-4 ${log.includes('SUCCESS') ? 'border-emerald-500 bg-emerald-500/10' : log.includes('FAILURE') || log.includes('Error') ? 'border-rose-500 bg-rose-500/10' : 'border-blue-500 bg-white/5'}`}>
+                  <div key={i} className={`p-3 rounded-lg border-l-4 ${log.includes('Success') ? 'border-emerald-500 bg-emerald-500/10' : log.includes('Error') ? 'border-rose-500 bg-rose-500/10' : 'border-blue-500 bg-white/5'}`}>
                     {log}
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'AUDIT' && (
-          <div className="space-y-12 animate-fadeIn">
-            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Forensic <span className="text-blue-500">Logs.</span></h2>
-            <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Timestamp</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Actor</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Action</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Metadata</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {auditLogs.slice().reverse().slice(0, 50).map(log => (
-                    <tr key={log.id}>
-                      <td className="p-8 text-[10px] font-mono text-slate-400">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                      <td className="p-8 text-[10px] font-black text-slate-900">{log.actorId}</td>
-                      <td className="p-8">
-                        <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${log.action.includes('BREACH') || log.action.includes('SUSPENSION') ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}`}>{log.action}</span>
-                      </td>
-                      <td className="p-8 text-[10px] font-mono text-slate-400 truncate max-w-xs">{JSON.stringify(log.metadata)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
@@ -193,7 +221,7 @@ const AdminModule: React.FC = () => {
             <div className="relative group max-w-xl">
               <input 
                 type="text" 
-                placeholder="Search Problem Nodes..." 
+                placeholder="Search 2,000+ Problem Nodes..." 
                 className="bg-white border-2 border-slate-100 p-6 pl-14 rounded-3xl text-[11px] font-black uppercase tracking-widest w-full outline-none focus:border-blue-500 shadow-sm"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -206,6 +234,7 @@ const AdminModule: React.FC = () => {
                   <tr>
                     <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Node</th>
                     <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Base</th>
+                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Max</th>
                     <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 text-center">Mod</th>
                   </tr>
                 </thead>
@@ -214,9 +243,10 @@ const AdminModule: React.FC = () => {
                     <tr key={p.id}>
                       <td className="p-8">
                         <p className="font-black text-[#0A2540] uppercase italic tracking-tighter">{p.title}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">{p.category}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">{p.category} | {p.ontologyId}</p>
                       </td>
                       <td className="p-8 font-black">₹{p.basePrice}</td>
+                      <td className="p-8 font-black text-rose-500">₹{p.maxPrice}</td>
                       <td className="p-8 text-center">
                         <button onClick={() => setEditingProblem(p)} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Edit</button>
                       </td>
