@@ -4,7 +4,7 @@ import { bookingService } from './BookingService';
 import { billingService } from './BillingService';
 import { customerService } from './CustomerService';
 import { providerService } from './ProviderService';
-import { UserRole, BookingStatus, VerificationStatus, SLATier } from './types';
+import { UserRole, BookingStatus, VerificationStatus, SLATier, LedgerType } from './types';
 
 class QAAutomationService {
   private logs: string[] = [];
@@ -17,13 +17,70 @@ class QAAutomationService {
   getLogs() { return this.logs; }
 
   /**
-   * NEGATIVE TEST: PRICE LOCK BREACH ATTEMPT
-   * Verifies that the billing engine blocks any charge exceeding the max price cap.
+   * LOAD TEST: CONCURRENT BOOKING SPIKE
    */
+  async runLoadTest() {
+    this.addLog("INITIATING LOAD TEST: 20 CONCURRENT BOOKINGS...");
+    const customer = db.getUsers().find(u => u.role === UserRole.USER)!;
+    const problem = db.getProblems()[0];
+
+    const startTime = Date.now();
+    try {
+      const tasks = Array.from({ length: 20 }).map((_, i) => 
+        bookingService.create(customer.id, problem, 'DL')
+          .then(() => this.addLog(`Task ${i+1}: Booking Confirmed.`))
+      );
+
+      await Promise.all(tasks);
+      const duration = Date.now() - startTime;
+      this.addLog(`>>> LOAD TEST COMPLETE: 20 jobs in ${duration}ms. System Nominal. <<<`);
+    } catch (e: any) {
+      this.addLog(`!!! LOAD TEST FAILED: ${e.message}`);
+    }
+  }
+
+  /**
+   * ROLLBACK DRILL: ATOMIC CORRUPTION TEST
+   */
+  async runRollbackDrill() {
+    this.addLog("STARTING ROLLBACK DRILL (Atomic Integrity Test)...");
+    const admin = db.getUsers().find(u => u.id === 'ADMIN_ROOT')!;
+    const originalBalance = admin.walletBalance;
+
+    this.addLog(`Initial Root Balance: ₹${originalBalance}`);
+    
+    db.beginTransaction();
+    try {
+      this.addLog("Transaction Started: Crediting ₹10,000 to Root...");
+      await db.appendLedger({
+        id: 'CORRUPT_01',
+        userId: 'ADMIN_ROOT',
+        amount: 10000,
+        type: LedgerType.CREDIT,
+        category: 'PLATFORM_FEE',
+        timestamp: new Date().toISOString()
+      });
+
+      this.addLog("Injecting Failure: Simulating mid-flight crash...");
+      throw new Error("TRANSACTION_NODE_FAILURE_SIMULATED");
+      
+    } catch (e: any) {
+      this.addLog(`Caught Expected Error: ${e.message}`);
+      db.rollback();
+      this.addLog("Rollback Command Issued.");
+    }
+
+    const currentBalance = db.getUsers().find(u => u.id === 'ADMIN_ROOT')!.walletBalance;
+    if (currentBalance === originalBalance) {
+      this.addLog(">>> SUCCESS: Rollback verified. State is pristine. <<<");
+    } else {
+      this.addLog(`!!! CRITICAL FAILURE: Balance mismatch! Current: ₹${currentBalance} (Expected: ₹${originalBalance})`);
+    }
+  }
+
   async runPriceLockAttackTest() {
     this.addLog("STARTING PRICE-LOCK INTEGRITY TEST...");
     try {
-      // 1. Setup job
       const customer = db.getUsers().find(u => u.role === UserRole.USER)!;
       const problem = db.getProblems()[0];
       const booking = await bookingService.create(customer.id, problem, 'DL');
@@ -31,7 +88,6 @@ class QAAutomationService {
       this.addLog(`Simulating attack on Booking ${booking.id} (Max Cap: ₹${booking.maxPrice})`);
       await db.updateBooking(booking.id, { status: BookingStatus.IN_PROGRESS });
 
-      // 2. Attempt Overbilling
       const maliciousAddons = [
         { id: 'MAL_01', name: 'Fake Luxury Upgrade', price: 5000 }
       ];
@@ -51,9 +107,6 @@ class QAAutomationService {
     }
   }
 
-  /**
-   * FULL E2E: CUSTOMER -> BOOKING -> PAYMENT -> RATING
-   */
   async runFullConsumerLoop() {
     this.addLog("STARTING FULL CONSUMER E2E LOOP...");
     try {
@@ -103,8 +156,6 @@ class QAAutomationService {
   async runAdminOverrideTest() {
     this.addLog("TESTING ADMIN OVERRIDE...");
     const suspendedPro = db.getUsers().find(u => u.role === UserRole.PROVIDER)!;
-    const originalStatus = suspendedPro.status;
-    
     suspendedPro.status = 'SUSPENDED' as any;
     db.save();
 

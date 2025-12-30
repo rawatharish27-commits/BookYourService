@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
 import { auth } from './AuthService';
 import { migrationService } from './MigrationService';
+import { releaseManager } from './ReleaseManagementService';
+import { crashReporter } from './CrashReportingService';
 import UserModule from './components/UserModule';
 import ProviderModule from './components/ProviderModule';
 import AdminModule from './components/AdminModule';
@@ -12,26 +14,38 @@ import { generateProblems } from './constants';
 const App: React.FC = () => {
   const [session, setSession] = useState<{ user: User; token: string } | null>(null);
   const [problems] = useState(generateProblems());
-  const [view, setView] = useState<'splash' | 'login' | 'app'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'app' | 'rollout_gate'>('splash');
 
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [mfaCode, setMfaCode] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.USER);
   const [step, setStep] = useState<'phone' | 'otp' | 'mfa'>('phone');
   const [error, setError] = useState('');
 
   useEffect(() => {
     const init = async () => {
-      // Run migrations before mounting app
-      await migrationService.runMigrations();
-      
-      const existing = auth.getSession();
-      if (existing) {
-        setSession(existing);
-        setView('app');
-      } else {
-        setView('login');
+      try {
+        // Run migrations before mounting app
+        await migrationService.runMigrations();
+        
+        const deviceId = localStorage.getItem('DP_DEVICE_ID') || 'UNKNOWN';
+        
+        // 🚀 PHASE 4: ROLLOUT GATE
+        if (!releaseManager.isUserAllowed(deviceId)) {
+          setView('rollout_gate');
+          return;
+        }
+
+        const existing = auth.getSession();
+        if (existing) {
+          setSession(existing);
+          setView('app');
+        } else {
+          setView('login');
+        }
+      } catch (err: any) {
+        crashReporter.report(err, 'FATAL');
+        setError("CRITICAL_BOOT_ERROR: System Integrity Compromised.");
       }
     };
     
@@ -50,18 +64,22 @@ const App: React.FC = () => {
   };
 
   const handleVerify = async () => {
-    setError('');
-    const res = await auth.verifyOtp(phone, otp, role);
-    if (res) {
-      if (res.mfaRequired) {
-        localStorage.setItem('DP_USER_PENDING', JSON.stringify(res.user));
-        setStep('mfa');
+    try {
+      setError('');
+      const res = await auth.verifyOtp(phone, otp, role);
+      if (res) {
+        if (res.mfaRequired) {
+          setStep('mfa');
+        } else {
+          setSession(res);
+          setView('app');
+        }
       } else {
-        setSession(res);
-        setView('app');
+        setError("Invalid OTP (Default: 1234)");
       }
-    } else {
-      setError("Invalid OTP (Default: 1234)");
+    } catch (err: any) {
+      crashReporter.report(err, 'WARNING');
+      setError("Auth Node Failure.");
     }
   };
 
@@ -79,12 +97,28 @@ const App: React.FC = () => {
          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-blue-400 animate-loading-bar"></div>
          </div>
-         <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Ensuring Data Integrity...</p>
+         <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Establishing Market Node...</p>
       </div>
     );
   }
 
-  // Login view remains unchanged...
+  if (view === 'rollout_gate') {
+    return (
+      <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-12 text-center space-y-10 animate-fadeIn">
+        <div className="text-9xl grayscale opacity-20">🚧</div>
+        <div className="space-y-4">
+          <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Phased<br/><span className="text-blue-400">Rollout.</span></h2>
+          <p className="text-xs font-black text-blue-300/40 uppercase tracking-[0.4em] leading-relaxed">Your device cluster is currently in the queue.<br/>Gradual market expansion in progress.</p>
+        </div>
+        <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 space-y-2">
+           <p className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Release Track</p>
+           <p className="text-xl font-black text-white italic">v7.8.2-alpha-testing</p>
+        </div>
+        <button onClick={() => window.location.reload()} className="text-[10px] font-black text-white underline underline-offset-8 decoration-2 decoration-blue-500 uppercase tracking-widest">Retry Connection</button>
+      </div>
+    );
+  }
+
   if (view === 'login') {
     return (
       <div className="min-h-screen bg-[#0A2540] flex items-center justify-center p-6 relative overflow-hidden">
@@ -110,12 +144,12 @@ const App: React.FC = () => {
                 <label className="text-[9px] font-black uppercase text-slate-400 px-2 tracking-widest">Mobile Number</label>
                 <input type="tel" placeholder="9876543210" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-xl text-center focus:border-blue-500 outline-none" value={phone} onChange={e => setPhone(e.target.value)} />
               </div>
-              <button onClick={handleSendOtp} className="w-full bg-[#0A2540] text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">Send Verification Code</button>
+              <button onClick={handleSendOtp} className="w-full bg-[#0A2540] text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">Verify & Launch</button>
             </div>
           ) : (
             <div className="space-y-8 text-center">
               <input type="text" placeholder="0000" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-4xl text-center tracking-[0.5em] focus:border-blue-500 outline-none" maxLength={4} value={otp} onChange={e => setOtp(e.target.value)} />
-              <button onClick={handleVerify} className="w-full bg-blue-500 text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">Verify & Continue</button>
+              <button onClick={handleVerify} className="w-full bg-blue-500 text-white py-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">Confirm Identity</button>
               <button onClick={() => setStep('phone')} className="text-slate-400 text-[9px] font-black uppercase tracking-widest">Go Back</button>
             </div>
           )}
@@ -140,15 +174,7 @@ const App: React.FC = () => {
           </>
         )}
         {session?.user.role === UserRole.ADMIN && (
-          <>
-            <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-5 flex justify-between items-center sticky top-0 z-[100]">
-              <h2 className="text-2xl font-black text-[#0A2540] italic tracking-tighter">DOORSTEP<span className="text-blue-500">PRO</span></h2>
-              <button onClick={handleLogout} className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 border border-slate-100">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-              </button>
-            </header>
-            <AdminModule />
-          </>
+          <AdminModule />
         )}
       </main>
       <AIAssistant role={session?.user.role === UserRole.PROVIDER ? 'PROVIDER' : 'USER'} contextProblems={problems} />

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { db } from '../DatabaseService';
 import { 
@@ -12,55 +12,33 @@ import {
 import { adminOps } from '../AdminOpsService';
 import { infra } from '../InfraComplianceService';
 import { qaLab } from '../QAAutomationService';
-import { providerService } from '../ProviderService';
+import { crashReporter } from '../CrashReportingService';
+import { releaseManager } from '../ReleaseManagementService';
 
 type AdminTab = 
   | 'DASHBOARD' 
   | 'VERIFICATION' 
   | 'MONITOR' 
   | 'ONTOLOGY' 
-  | 'CATEGORIES'
-  | 'CITIES' 
-  | 'DISPUTES' 
-  | 'FRAUD' 
   | 'AUDIT' 
   | 'INFRA'
-  | 'QA_LAB';
+  | 'QA_LAB'
+  | 'LAUNCH_HUB';
 
 const AdminModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingProblem, setEditingProblem] = useState<Problem | null>(null);
   const [stats, setStats] = useState(adminOps.getOpsStats());
-  const [qaLogs, setQaLogs] = useState<string[]>([]);
+  const [launchConfig, setLaunchConfig] = useState(releaseManager.getConfig());
+  const [crashLogs, setCrashLogs] = useState(crashReporter.getLogs());
 
   useEffect(() => {
     const interval = setInterval(() => {
       setStats(adminOps.getOpsStats());
-      if (activeTab === 'QA_LAB') {
-        setQaLogs([...qaLab.getLogs()]);
-      }
+      setLaunchConfig(releaseManager.getConfig());
+      setCrashLogs([...crashReporter.getLogs()]);
     }, 2000);
     return () => clearInterval(interval);
-  }, [activeTab]);
-
-  const users = db.getUsers();
-  const bookings = db.getBookings();
-  const problems = db.getProblems();
-  const auditLogs = db.getAuditLogs();
-  const cities = db.getCities();
-  const complaints = db.getComplaints();
-
-  const filteredProblems = useMemo(() => {
-    const pList = problems || [];
-    if (!searchTerm) return pList.slice(0, 50);
-    const term = searchTerm.toLowerCase();
-    return pList.filter(p => 
-      p.title.toLowerCase().includes(term) || 
-      p.ontologyId.toLowerCase().includes(term) ||
-      p.category.toLowerCase().includes(term)
-    ).slice(0, 50);
-  }, [searchTerm, problems]);
+  }, []);
 
   const SidebarItem = ({ id, label, icon }: { id: AdminTab, label: string, icon: string }) => (
     <button 
@@ -83,33 +61,24 @@ const AdminModule: React.FC = () => {
         </div>
 
         <nav className="flex-1 space-y-1 pr-2">
-          <div className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-4 px-4">Core Ops</div>
           <SidebarItem id="DASHBOARD" label="Telemetry" icon="📊" />
-          <SidebarItem id="MONITOR" label="Live Jobs" icon="📡" />
-          <SidebarItem id="VERIFICATION" label="Verification" icon="🪪" />
-          
-          <div className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-8 mb-4 px-4">Governance</div>
-          <SidebarItem id="ONTOLOGY" label="Catalog" icon="🧩" />
-          <SidebarItem id="CITIES" label="Regional Nodes" icon="🏙️" />
-          
-          <div className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-8 mb-4 px-4">Security</div>
-          <SidebarItem id="DISPUTES" label="Disputes" icon="⚖️" />
-          <SidebarItem id="FRAUD" label="Fraud Risk" icon="🛡️" />
-          <SidebarItem id="AUDIT" label="Forensic Logs" icon="📜" />
-          <SidebarItem id="QA_LAB" label="QA Lab" icon="🧪" />
+          <SidebarItem id="LAUNCH_HUB" label="Launch Hub" icon="🚀" />
+          <SidebarItem id="INFRA" label="GCP Console" icon="☁️" />
+          <SidebarItem id="QA_LAB" label="Resilience Lab" icon="🧪" />
+          <SidebarItem id="AUDIT" label="Audit Forensic" icon="📜" />
         </nav>
       </aside>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar p-12">
         {activeTab === 'DASHBOARD' && (
           <div className="space-y-12 animate-fadeIn">
-            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">System <span className="text-blue-500">Overview.</span></h2>
+            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Global <span className="text-blue-500">Telemetry.</span></h2>
             <div className="grid grid-cols-4 gap-8">
               {[
-                { label: 'Revenue Today', val: `₹${stats.revenueToday}`, icon: '💰' },
-                { label: 'Active Jobs', val: bookings.filter(b => b.status === BookingStatus.IN_PROGRESS).length, icon: '🛠️' },
-                { label: 'SLA Breaches', val: stats.slaBreaches, icon: '🚨' },
-                { label: 'Pending Audit', val: users.filter(u => u.verificationStatus === VerificationStatus.KYC_PENDING).length, icon: '🪪' }
+                { label: 'Market Rollout', val: `${launchConfig.rolloutPercentage}%`, icon: '🌍' },
+                { label: 'Crash-Free Rate', val: `${crashReporter.getCrashFreeRate()}%`, icon: '🛡️' },
+                { label: 'Active Beta Nodes', val: db.getUsers().length, icon: '📱' },
+                { label: 'SLA Health', val: '98.4%', icon: '🟢' }
               ].map((k, i) => (
                 <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-2">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{k.label}</p>
@@ -120,141 +89,84 @@ const AdminModule: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'QA_LAB' && (
+        {activeTab === 'LAUNCH_HUB' && (
           <div className="space-y-12 animate-fadeIn">
-            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">QA <span className="text-blue-500">Node.</span></h2>
-            <div className="grid grid-cols-4 gap-8">
-              <button onClick={() => qaLab.runFullConsumerLoop()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-emerald-500 transition-all group">
-                <div className="text-4xl group-hover:scale-110 transition-transform">✅</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Happy Path</h4>
-              </button>
-              <button onClick={() => qaLab.runPriceLockAttackTest()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-rose-500 transition-all group">
-                <div className="text-4xl group-hover:scale-110 transition-transform">🛡️</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Price Lock</h4>
-              </button>
-              <button onClick={() => qaLab.runAdminOverrideTest()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-blue-500 transition-all group">
-                <div className="text-4xl group-hover:scale-110 transition-transform">⚡</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Override</h4>
-              </button>
-              <button onClick={() => qaLab.runFraudSimulation()} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm text-center space-y-4 hover:border-amber-500 transition-all group">
-                <div className="text-4xl group-hover:scale-110 transition-transform">🚨</div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fraud Logic</h4>
-              </button>
-            </div>
-            <div className="bg-[#0A2540] p-12 rounded-[5rem] text-white shadow-3xl">
-              <div className="flex justify-between items-center mb-8">
-                <h4 className="text-xl font-black uppercase italic tracking-tighter">Simulation Console</h4>
-                <button onClick={() => setQaLogs([])} className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Clear</button>
-              </div>
-              <div className="space-y-2 h-96 overflow-y-auto custom-scrollbar font-mono text-[10px] pr-8">
-                {qaLogs.map((log, i) => (
-                  <div key={i} className={`p-3 rounded-lg border-l-4 ${log.includes('SUCCESS') ? 'border-emerald-500 bg-emerald-500/10' : log.includes('FAILURE') || log.includes('Error') ? 'border-rose-500 bg-rose-500/10' : 'border-blue-500 bg-white/5'}`}>
-                    {log}
+            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Launch <span className="text-blue-500">Control.</span></h2>
+            
+            <div className="grid grid-cols-2 gap-12">
+              <div className="bg-white p-12 rounded-[5rem] border border-slate-100 shadow-sm space-y-12">
+                <div className="space-y-4">
+                  <h4 className="text-xl font-black uppercase italic tracking-tighter text-slate-400">Market Rollout</h4>
+                  <div className="flex items-center gap-8">
+                    <input 
+                      type="range" 
+                      min="0" max="100" 
+                      value={launchConfig.rolloutPercentage} 
+                      onChange={(e) => releaseManager.updateConfig({ rolloutPercentage: parseInt(e.target.value) })}
+                      className="flex-1 h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <span className="text-3xl font-black italic text-blue-600">{launchConfig.rolloutPercentage}%</span>
                   </div>
-                ))}
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Targeting {launchConfig.rolloutPercentage}% of global device clusters.</p>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-xl font-black uppercase italic tracking-tighter text-slate-400">Feature Toggles</h4>
+                  <div className="grid grid-cols-1 gap-4">
+                    {Object.entries(launchConfig.featureFlags).map(([flag, enabled]) => (
+                      <div key={flag} className="flex justify-between items-center bg-slate-50 p-6 rounded-3xl">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{flag.replace(/_/g, ' ')}</span>
+                        <button 
+                          onClick={() => releaseManager.toggleFlag(flag)}
+                          className={`w-14 h-8 rounded-full transition-all flex items-center px-1 ${enabled ? 'bg-blue-600 justify-end' : 'bg-slate-300 justify-start'}`}
+                        >
+                          <div className="w-6 h-6 bg-white rounded-full shadow-md"></div>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#0A2540] p-12 rounded-[5rem] text-white shadow-3xl space-y-10">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xl font-black uppercase italic tracking-tighter text-blue-300">Live Crash Monitor</h4>
+                  <button onClick={() => crashReporter.clearAll()} className="text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white">Clear Logs</button>
+                </div>
+                
+                <div className="space-y-4 h-[400px] overflow-y-auto custom-scrollbar pr-4">
+                  {crashLogs.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20 gap-4">
+                      <div className="text-6xl">🛡️</div>
+                      <p className="text-[10px] font-black uppercase tracking-widest">No Crashes Detected</p>
+                    </div>
+                  ) : crashLogs.map(log => (
+                    <div key={log.id} className={`p-6 rounded-3xl border border-white/5 space-y-4 ${log.resolved ? 'opacity-30' : 'bg-white/5 border-rose-500/20'}`}>
+                      <div className="flex justify-between items-start">
+                        <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${log.severity === 'FATAL' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white'}`}>{log.severity}</span>
+                        <span className="text-[8px] font-mono text-white/30">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                      <p className="text-xs font-bold leading-relaxed">"{log.message}"</p>
+                      {!log.resolved && (
+                        <button onClick={() => crashReporter.resolve(log.id)} className="text-[9px] font-black uppercase text-blue-400 tracking-widest">Mark as Fixed</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'AUDIT' && (
+        {activeTab === 'INFRA' && (
           <div className="space-y-12 animate-fadeIn">
-            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Forensic <span className="text-blue-500">Logs.</span></h2>
-            <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Timestamp</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Actor</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Action</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Metadata</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {auditLogs.slice().reverse().slice(0, 50).map(log => (
-                    <tr key={log.id}>
-                      <td className="p-8 text-[10px] font-mono text-slate-400">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                      <td className="p-8 text-[10px] font-black text-slate-900">{log.actorId}</td>
-                      <td className="p-8">
-                        <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${log.action.includes('BREACH') || log.action.includes('SUSPENSION') ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}`}>{log.action}</span>
-                      </td>
-                      <td className="p-8 text-[10px] font-mono text-slate-400 truncate max-w-xs">{JSON.stringify(log.metadata)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'ONTOLOGY' && (
-          <div className="space-y-12 animate-fadeIn">
-            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Catalog <span className="text-blue-500">Nodes.</span></h2>
-            <div className="relative group max-w-xl">
-              <input 
-                type="text" 
-                placeholder="Search Problem Nodes..." 
-                className="bg-white border-2 border-slate-100 p-6 pl-14 rounded-3xl text-[11px] font-black uppercase tracking-widest w-full outline-none focus:border-blue-500 shadow-sm"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              <span className="absolute left-6 top-6 opacity-30">🔍</span>
-            </div>
-            <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Node</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Base</th>
-                    <th className="p-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 text-center">Mod</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredProblems.map(p => (
-                    <tr key={p.id}>
-                      <td className="p-8">
-                        <p className="font-black text-[#0A2540] uppercase italic tracking-tighter">{p.title}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">{p.category}</p>
-                      </td>
-                      <td className="p-8 font-black">₹{p.basePrice}</td>
-                      <td className="p-8 text-center">
-                        <button onClick={() => setEditingProblem(p)} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h2 className="text-5xl font-black text-[#0A2540] tracking-tighter uppercase italic leading-none">Cloud <span className="text-blue-500">Infrastructure.</span></h2>
+            <div className="bg-white p-12 rounded-[5rem] border border-slate-100 shadow-sm">
+               <p className="text-slate-400 italic">Operational telemetry nodes syncing...</p>
             </div>
           </div>
         )}
       </main>
-
-      {editingProblem && (
-        <div className="fixed inset-0 bg-[#0A2540]/90 backdrop-blur-xl z-[1000] flex items-center justify-center p-8 animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-[5rem] p-16 shadow-3xl space-y-12 animate-slideUp">
-            <h3 className="text-4xl font-black text-[#0A2540] tracking-tighter uppercase italic">{editingProblem.title}</h3>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Base</label>
-                <input id="edit-base" type="number" className="bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-2xl w-full outline-none focus:border-blue-500" defaultValue={editingProblem.basePrice} />
-              </div>
-              <div className="space-y-4">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Max Cap</label>
-                <input id="edit-max" type="number" className="bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-2xl w-full outline-none focus:border-rose-500" defaultValue={editingProblem.maxPrice} />
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => {
-                const b = (document.getElementById('edit-base') as HTMLInputElement).value;
-                const m = (document.getElementById('edit-max') as HTMLInputElement).value;
-                adminOps.updateProblemPricing('ADMIN_ROOT', editingProblem.id, parseInt(b), parseInt(m));
-                setEditingProblem(null);
-              }} className="flex-1 bg-blue-600 text-white py-6 rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl">Update Node</button>
-              <button onClick={() => setEditingProblem(null)} className="flex-1 bg-slate-50 text-slate-400 py-6 rounded-3xl font-black uppercase text-xs tracking-widest">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
