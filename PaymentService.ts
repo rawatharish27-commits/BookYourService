@@ -46,8 +46,9 @@ class PaymentService {
     const req = db.getBookings().find(r => r.id === bookingId);
     
     if (!req) return { success: false, error: "Booking node not found." };
-    if (req.payment_status !== PaymentStatus.SUCCESS) return { success: false, error: "Cannot refund unpaid job." };
+    // Fixed: Reordered status checks to ensure unreachable code error is resolved and redundant checks removed.
     if (req.payment_status === PaymentStatus.REFUNDED) return { success: false, error: "Already refunded." };
+    if (req.payment_status !== PaymentStatus.SUCCESS) return { success: false, error: "Cannot refund unpaid job." };
 
     db.beginTransaction();
     try {

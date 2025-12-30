@@ -1,7 +1,9 @@
 {
-  "name": "Book Your Service",
-  "description": "A comprehensive UrbanClap-style platform connecting users with local service providers for daily-life problems with automated billing, platform fee management, and multi-role dashboards.",
+  "name": "DoorStep Pro Enterprise",
+  "description": "Enterprise-scale service fulfillment platform with visual diagnostics, live voice booking, and maps-grounded intelligence.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "camera",
+    "microphone"
   ]
 }
