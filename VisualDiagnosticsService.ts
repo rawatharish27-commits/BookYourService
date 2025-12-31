@@ -5,18 +5,17 @@ import { db } from './DatabaseService';
 class VisualDiagnosticsService {
   async analyzeProblemImage(base64Image: string, mimeType: string): Promise<{ suggestedProblem: Problem | null; confidence: number; reasoning: string }> {
     try {
-      const key = process.env.API_KEY || "";
-      const ai = new GoogleGenAI({ apiKey: key });
-      
-      const allProblems = db.getProblems();
-      const ontologySample = (allProblems || []).slice(0, 50);
+      const apiKey = process.env.API_KEY || "";
+      const ai = new GoogleGenAI({ apiKey });
+      const problems = db.getProblems();
+      const ontologySample = problems.slice(0, 50);
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: {
           parts: [
             { inlineData: { data: base64Image, mimeType } },
-            { text: `System Diagnostic Mode: Identify technical fault from image. Compare against known ontology nodes: ${ontologySample.map(p => p.title).join(', ')}. Return JSON format: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
+            { text: `SYSTEM ANALYSIS: Identify technical fault from image. Compare against ontology: ${ontologySample.map(p => p.title).join(', ')}. Return valid JSON: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
           ]
         },
         config: {
@@ -27,15 +26,15 @@ class VisualDiagnosticsService {
 
       const responseText = response.text || '{}';
       const result = JSON.parse(responseText);
-      const matched = (allProblems || []).find(p => p.title === result.matchedTitle);
+      const matched = problems.find(p => p.title === result.matchedTitle) || null;
 
       return {
-        suggestedProblem: matched || null,
+        suggestedProblem: matched,
         confidence: result.confidence || 0,
-        reasoning: result.reasoning || "Visual node processed successfully."
+        reasoning: result.reasoning || "Node diagnostic processing finalized."
       };
     } catch (error) {
-      console.error("AI Node Critical Error:", error);
+      console.error("AI Diagnostic Node Critical Error:", error);
       throw error;
     }
   }

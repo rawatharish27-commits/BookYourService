@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
-import { auth } from './services/AuthService';
-import DashboardModule from './modules/DashboardModule';
-import ProviderModule from './modules/ProviderModule';
-import AdminModule from './modules/AdminModule';
+import { auth } from './AuthService';
+import DashboardModule from './components/UserModule';
+import ProviderModule from './components/ProviderModule';
+import AdminModule from './components/AdminModule';
 import AIAssistant from './components/AIAssistant';
 import { generateProblems } from './constants';
 
@@ -18,7 +18,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      // Check for AI Studio Key in production
+      // Check for AI Studio Key in production context
       const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
       
       if (!hasKey && process.env.NODE_ENV === 'production') {

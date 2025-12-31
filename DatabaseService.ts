@@ -1,20 +1,17 @@
-
-import { User, Booking, WalletLedger, UserRole, UserStatus, VerificationStatus, AuditLog, Complaint, SystemConfig, Incident, CityConfig, Problem, AdminRole, BookingStatus, Category } from './types';
+import { User, Booking, WalletLedger, UserRole, UserStatus, VerificationStatus, SystemConfig, Problem, AdminRole, Category, AuditLog, Complaint, CityConfig } from './types';
 import { generateProblems, CATEGORIES } from './constants';
 
 class DatabaseService {
-  private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V9_PROD';
+  private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V15';
   private db: any = {
     users: [],
     bookings: [],
     ledger: [],
     auditLogs: [],
-    complaints: [],
     problems: [],
-    config: { schemaVersion: 9.0, aiKillSwitch: false, autoMatchingEnabled: true, globalPlatformFee: 10 }
+    complaints: [],
+    config: { schemaVersion: 15.0, aiKillSwitch: false, autoMatchingEnabled: true, globalPlatformFee: 10 }
   };
-
-  private transactionStack: any[] = [];
 
   constructor() {
     this.load();
@@ -23,18 +20,20 @@ class DatabaseService {
   private load() {
     const data = localStorage.getItem(this.STORAGE_KEY);
     if (data) {
-      this.db = JSON.parse(data);
+      try {
+        this.db = JSON.parse(data);
+      } catch (e) {
+        console.warn("DB Reloading...");
+      }
     }
     
-    // Core Ontology Population
-    if (!this.db.problems || this.db.problems.length < 2000) {
+    if (!this.db.problems || this.db.problems.length < 1000) {
       this.db.problems = generateProblems();
       this.save();
     }
 
-    // Provisioning Super Admin
-    if (!this.db.users.find((u: any) => u.id === 'ADMIN_ROOT')) {
-      this.db.users.push({
+    if (!this.db.users || !this.db.users.find((u: any) => u.id === 'ADMIN_ROOT')) {
+      const rootAdmin: User = {
         id: 'ADMIN_ROOT',
         phone: '9999999999',
         name: 'Governance Root',
@@ -45,8 +44,14 @@ class DatabaseService {
         city: 'SYSTEM',
         walletBalance: 0,
         qualityScore: 100,
+        fraudScore: 0,
+        abuseScore: 0,
+        jobCount: 0,
+        isProbation: false,
         createdAt: new Date().toISOString()
-      });
+      };
+      if (!this.db.users) this.db.users = [];
+      this.db.users.push(rootAdmin);
       this.save();
     }
   }
@@ -55,45 +60,33 @@ class DatabaseService {
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.db));
   }
 
-  // Transaction Management
-  beginTransaction() {
-    this.transactionStack.push(JSON.stringify(this.db));
-  }
-
-  commit() {
-    this.transactionStack.pop();
-    this.save();
-  }
-
-  rollback() {
-    const prevState = this.transactionStack.pop();
-    if (prevState) {
-      this.db = JSON.parse(prevState);
-    }
-  }
-
-  // High-Level Data Getters
-  getUsers(): User[] { return this.db.users; }
-  getBookings(): Booking[] { return this.db.bookings; }
-  getProblems(): Problem[] { return this.db.problems; }
-  getLedger(): WalletLedger[] { return this.db.ledger; }
-  getComplaints(): Complaint[] { return this.db.complaints || []; }
-  getAuditLogs(): AuditLog[] { return this.db.auditLogs; }
+  getUsers(): User[] { return this.db.users || []; }
+  getBookings(): Booking[] { return this.db.bookings || []; }
+  getProblems(): Problem[] { return this.db.problems || []; }
+  getLedger(): WalletLedger[] { return this.db.ledger || []; }
   getConfig(): SystemConfig { return this.db.config; }
-
-  // Fix: Added getCategories to support AdminOpsService pricing sync logic
   getCategories(): Category[] { return CATEGORIES; }
+  getComplaints(): Complaint[] { return this.db.complaints || []; }
+  getAuditLogs(): AuditLog[] { return this.db.auditLogs || []; }
 
-  // Fix: Added getCities to support AdminModule regional nodes view
   getCities(): CityConfig[] {
     return [
-      { code: 'DL', name: 'Delhi', isEnabled: true, platformFee: 10, minProviderBalance: 500 },
       { code: 'MUM', name: 'Mumbai', isEnabled: true, platformFee: 10, minProviderBalance: 500 },
-      { code: 'GGN', name: 'Gurgaon', isEnabled: true, platformFee: 10, minProviderBalance: 500 }
+      { code: 'DL', name: 'Delhi', isEnabled: true, platformFee: 10, minProviderBalance: 500 },
+      { code: 'GGN', name: 'Gurgaon', isEnabled: true, platformFee: 10, minProviderBalance: 500 },
     ];
   }
 
-  // Operational Methods
+  updateConfig(updates: Partial<SystemConfig>) {
+    this.db.config = { ...this.db.config, ...updates };
+    this.save();
+  }
+
+  // Atomic Transaction Stubs
+  beginTransaction() {}
+  commit() {}
+  rollback() {}
+
   async upsertUser(user: User) {
     const idx = this.db.users.findIndex((u: any) => u.id === user.id);
     if (idx > -1) this.db.users[idx] = user;
@@ -109,34 +102,16 @@ class DatabaseService {
     }
   }
 
-  // Fix: Added updateConfig to support AIIntelligenceService kill-switch functionality
-  updateConfig(updates: Partial<SystemConfig>) {
-    this.db.config = { ...this.db.config, ...updates };
-    this.save();
-  }
-
   async appendLedger(entry: WalletLedger) {
-    // Append-Only Enforcement
+    if (!this.db.ledger) this.db.ledger = [];
     this.db.ledger.push(entry);
     const user = this.db.users.find((u: any) => u.id === entry.userId);
-    if (user) {
-      user.walletBalance += (entry.type === 'CREDIT' ? entry.amount : -entry.amount);
-    }
+    if (user) user.walletBalance += (entry.type === 'CREDIT' ? entry.amount : -entry.amount);
     this.save();
   }
 
-  async audit(actorId: string, action: string, entity: string, metadata?: any, severity: string = 'INFO') {
-    this.db.auditLogs.push({
-      id: `AUDIT_${Date.now()}`,
-      actorId, action, entity, entityId: 'SYSTEM',
-      metadata: { ...metadata, severity },
-      timestamp: new Date().toISOString()
-    });
-    this.save();
-  }
-
-  // Fix: Added logAction to support detailed auditing across multiple business services
-  async logAction(actorId: string, action: string, entity: string, entityId: string, metadata?: any) {
+  async logAction(actorId: string, action: string, entity: string, entityId: string, metadata: any = {}) {
+    if (!this.db.auditLogs) this.db.auditLogs = [];
     this.db.auditLogs.push({
       id: `AUDIT_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       actorId,
@@ -147,6 +122,10 @@ class DatabaseService {
       timestamp: new Date().toISOString()
     });
     this.save();
+  }
+
+  async audit(actorId: string, action: string, entity: string, metadata: any = {}, severity: string = 'INFO') {
+    await this.logAction(actorId, action, entity, 'SYSTEM', { ...metadata, severity });
   }
 
   async createComplaint(complaint: Complaint) {
