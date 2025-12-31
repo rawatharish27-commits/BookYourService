@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
-import { auth } from './AuthService';
-import { migrationService } from './MigrationService';
-import UserModule from './components/UserModule';
-import ProviderModule from './components/ProviderModule';
-import AdminModule from './components/AdminModule';
+import { auth } from './services/AuthService';
+import { migrationService } from './services/MigrationService';
+import DashboardModule from './modules/DashboardModule';
+import ProviderModule from './modules/ProviderModule';
+import AdminModule from './modules/AdminModule';
 import AIAssistant from './components/AIAssistant';
 import { generateProblems } from './constants';
 
@@ -101,7 +102,7 @@ const App: React.FC = () => {
       ) : (
         <>
           <main>
-            {session?.user.role === UserRole.USER && <UserModule problems={problems} user={session.user} />}
+            {session?.user.role === UserRole.USER && <DashboardModule problems={problems} user={session.user} />}
             {session?.user.role === UserRole.PROVIDER && <ProviderModule providerId={session.user.id} />}
             {session?.user.role === UserRole.ADMIN && <AdminModule />}
           </main>

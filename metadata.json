@@ -1,9 +1,9 @@
 {
-  "name": "DoorStep Pro Enterprise",
-  "description": "Enterprise-scale service fulfillment platform with visual diagnostics, live voice booking, and maps-grounded intelligence.",
   "requestFramePermissions": [
-    "geolocation",
     "camera",
-    "microphone"
-  ]
+    "microphone",
+    "geolocation"
+  ],
+  "name": "",
+  "description": ""
 }
