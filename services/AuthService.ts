@@ -1,22 +1,12 @@
 
 import { db } from './DatabaseService';
 import { User, UserRole, UserStatus, VerificationStatus } from '../types';
-import { infra } from './InfraComplianceService';
 
 class AuthService {
   private currentUser: User | null = null;
   private readonly ACCESS_TOKEN_EXPIRY = 15 * 60 * 1000;
 
-  private ensureDeviceId() {
-    let deviceId = localStorage.getItem('DP_DEVICE_ID');
-    if (!deviceId) {
-      deviceId = `DEV_${Math.random().toString(36).slice(2, 11).toUpperCase()}`;
-      localStorage.setItem('DP_DEVICE_ID', deviceId);
-    }
-    return deviceId;
-  }
-
-  async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string; refreshToken: string } | null> {
+  async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string } | null> {
     if (otp !== '1234') return null;
     
     const users = db.getUsers();
@@ -27,7 +17,7 @@ class AuthService {
       user = {
         id: `U_${Date.now()}`,
         phone,
-        name: `User_${phone.slice(-4)}`,
+        name: `${role === UserRole.PROVIDER ? 'Partner' : 'User'}_${phone.slice(-4)}`,
         role,
         status: role === UserRole.PROVIDER ? UserStatus.PROBATION : UserStatus.ACTIVE,
         verificationStatus: role === UserRole.PROVIDER ? VerificationStatus.REGISTERED : VerificationStatus.ACTIVE,
@@ -39,7 +29,6 @@ class AuthService {
         isProbation: role === UserRole.PROVIDER,
         jobCount: 0,
         createdAt: new Date().toISOString(),
-        deviceId: this.ensureDeviceId()
       };
       await db.upsertUser(user);
     }
@@ -50,17 +39,15 @@ class AuthService {
   private async issueTokens(user: User) {
     const expiresAt = Date.now() + this.ACCESS_TOKEN_EXPIRY;
     const token = `JWT_${btoa(user.id + ':' + expiresAt)}`;
-    const refreshToken = `REF_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     
     user.lastLogin = new Date().toISOString();
     await db.upsertUser(user);
     
     this.currentUser = user;
     localStorage.setItem('DP_TOKEN', token);
-    localStorage.setItem('DP_REFRESH_TOKEN', refreshToken);
     localStorage.setItem('DP_USER', JSON.stringify(user));
     
-    return { user, token, refreshToken };
+    return { user, token };
   }
 
   getSession() {

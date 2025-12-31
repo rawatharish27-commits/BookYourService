@@ -88,10 +88,9 @@ export interface User {
   abuseScore: number;
   qualityScore: number;
   jobCount: number;
+  isProbation: boolean;
   deviceId?: string;
   lastLogin?: string;
-  // Fix: Added missing property isProbation to User interface to match creation in AuthService
-  isProbation: boolean;
 }
 
 export interface Booking {
@@ -110,6 +109,42 @@ export interface Booking {
   addons: Addon[];
   city: string;
   category?: string;
+  cancelProbability?: number;
+  slaTier?: SLATier;
+}
+
+// Updated Problem interface to include missing required properties as identified in constants/index.ts error
+export interface Problem {
+  id: string;
+  ontologyId: string;
+  category: string;
+  subCategory: string;
+  title: string;
+  basePrice: number;
+  maxPrice: number;
+  addons: Addon[];
+  description: string;
+  providerRole: string;
+  severity: number;
+  slaTier: SLATier;
+  isEnabled: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  isEnabled: boolean;
+  providerType?: string;
+}
+
+// Added CityConfig interface to resolve global consistency
+export interface CityConfig {
+  code: string;
+  name: string;
+  isEnabled: boolean;
+  platformFee: number;
+  minProviderBalance: number;
 }
 
 export interface WalletLedger {
@@ -122,37 +157,8 @@ export interface WalletLedger {
   timestamp: string;
 }
 
-export interface Problem {
-  id: string;
-  ontologyId: string;
-  category: string;
-  title: string;
-  basePrice: number;
-  maxPrice: number;
-  addons: Addon[];
-  description: string;
-  slaTier: SLATier;
-  isEnabled: boolean;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  isEnabled: boolean;
-}
-
 export interface SystemConfig {
   aiKillSwitch: boolean;
   autoMatchingEnabled: boolean;
   globalPlatformFee: number;
-}
-
-// Added CityConfig interface to resolve import error in DatabaseService.ts
-export interface CityConfig {
-  code: string;
-  name: string;
-  isEnabled: boolean;
-  platformFee: number;
-  minProviderBalance: number;
 }
