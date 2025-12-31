@@ -23,14 +23,13 @@ class AuthService {
   async sendOtp(phone: string): Promise<{ success: boolean; message: string }> {
     const deviceId = this.ensureDeviceId();
     if (!infra.checkRateLimit(deviceId)) {
-      return { success: false, message: "Too many requests. Node cooling down." };
+      return { success: false, message: "Security Node: Rate limit exceeded. Try in 60s." };
     }
-
-    console.log(`[SECURE_GATEWAY] Code for ${phone}: 1234`);
+    console.log(`[PROD_GATEWAY] Secure OTP for ${phone}: 1234`);
     return { success: true, message: "OTP Sent." };
   }
 
-  async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string; refreshToken: string; mfaRequired?: boolean } | null> {
+  async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string; refreshToken: string } | null> {
     if (otp !== '1234') return null;
     
     const users = db.getUsers();
@@ -41,11 +40,11 @@ class AuthService {
       user = {
         id: `U_${Date.now()}`,
         phone,
-        name: `User_${phone.slice(-4)}`,
+        name: `Partner_${phone.slice(-4)}`,
         role,
         status: role === UserRole.PROVIDER ? UserStatus.PROBATION : UserStatus.ACTIVE,
         verificationStatus: role === UserRole.PROVIDER ? VerificationStatus.REGISTERED : VerificationStatus.ACTIVE,
-        city: 'DL',
+        city: 'MUMBAI',
         walletBalance: 0,
         fraudScore: 0,
         abuseScore: 0,
@@ -58,20 +57,15 @@ class AuthService {
       await db.upsertUser(user);
     }
 
-    if (user.role === UserRole.ADMIN && user.mfaEnabled) {
-      return { user, token: 'PRE_AUTH', refreshToken: 'PRE_AUTH', mfaRequired: true };
-    }
-
     return this.issueTokens(user);
   }
 
   private async issueTokens(user: User) {
     const expiresAt = Date.now() + this.ACCESS_TOKEN_EXPIRY;
     const token = `JWT_${btoa(user.id + ':' + expiresAt)}`;
-    const refreshToken = `REF_${Math.random().toString(36).slice(2)}`;
+    const refreshToken = `REF_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     
     user.lastLogin = new Date().toISOString();
-    user.deviceId = this.ensureDeviceId();
     await db.upsertUser(user);
     
     this.currentUser = user;
@@ -84,24 +78,10 @@ class AuthService {
 
   async rotateTokens() {
     const userStr = localStorage.getItem('DP_USER');
-    const refresh = localStorage.getItem('DP_REFRESH_TOKEN');
-    if (!userStr || !refresh) return null;
-
+    if (!userStr) return null;
     const user = JSON.parse(userStr);
-    console.log("[SECURITY] Rotating Refresh Token for", user.id);
+    console.log("[SECURITY] Rotating Token for Session Node:", user.id);
     return this.issueTokens(user);
-  }
-
-  async verify2FA(code: string): Promise<boolean> {
-    if (code === '9999') {
-      const user = JSON.parse(localStorage.getItem('DP_USER_PENDING') || '{}');
-      if (user.id) {
-         await this.issueTokens(user);
-         localStorage.removeItem('DP_USER_PENDING');
-         return true;
-      }
-    }
-    return false;
   }
 
   logout() {
@@ -115,12 +95,9 @@ class AuthService {
     const userStr = localStorage.getItem('DP_USER');
     const token = localStorage.getItem('DP_TOKEN');
     if (userStr && token) {
-      // Check expiry
       const parts = atob(token.split('_')[1]).split(':');
       const expiry = parseInt(parts[1]);
       if (Date.now() > expiry) {
-        console.warn("[SECURITY] Token Expired. Triggering Rotation.");
-        // In a real app, this would be handled via an interceptor
         this.rotateTokens();
       }
       this.currentUser = JSON.parse(userStr);

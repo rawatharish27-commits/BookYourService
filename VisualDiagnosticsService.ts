@@ -7,14 +7,14 @@ class VisualDiagnosticsService {
   async analyzeProblemImage(base64Image: string, mimeType: string): Promise<{ suggestedProblem: Problem | null; confidence: number; reasoning: string }> {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const problems = db.getProblems().slice(0, 50);
+      const ontologySample = db.getProblems().slice(0, 50);
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: {
           parts: [
             { inlineData: { data: base64Image, mimeType } },
-            { text: `Identify this technical fault. Compare against: ${problems.map(p => p.title).join(', ')}. Return JSON: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
+            { text: `System Diagnostic Mode: Identify technical fault from image. Compare against known ontology nodes: ${ontologySample.map(p => p.title).join(', ')}. Return JSON format: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
           ]
         },
         config: {
@@ -29,10 +29,10 @@ class VisualDiagnosticsService {
       return {
         suggestedProblem: matched || null,
         confidence: result.confidence || 0,
-        reasoning: result.reasoning || "Diagnostic complete."
+        reasoning: result.reasoning || "Visual node processed."
       };
     } catch (error) {
-      console.error("Vision Failure", error);
+      console.error("AI Node Critical Error", error);
       throw error;
     }
   }
