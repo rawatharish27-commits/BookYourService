@@ -91,6 +91,7 @@ export interface User {
   isProbation: boolean;
   deviceId?: string;
   lastLogin?: string;
+  rank?: number;
 }
 
 export interface Booking {
@@ -109,11 +110,17 @@ export interface Booking {
   addons: Addon[];
   city: string;
   category?: string;
+  slaTier: SLATier;
+  assignedAt?: string;
   cancelProbability?: number;
-  slaTier?: SLATier;
+  payment_status?: PaymentStatus;
+  payment_method?: PaymentMethod;
+  rating?: number;
+  review?: string;
+  complaintId?: string;
+  completedAt?: string;
 }
 
-// Updated Problem interface to include missing required properties as identified in constants/index.ts error
 export interface Problem {
   id: string;
   ontologyId: string;
@@ -138,15 +145,6 @@ export interface Category {
   providerType?: string;
 }
 
-// Added CityConfig interface to resolve global consistency
-export interface CityConfig {
-  code: string;
-  name: string;
-  isEnabled: boolean;
-  platformFee: number;
-  minProviderBalance: number;
-}
-
 export interface WalletLedger {
   id: string;
   userId: string;
@@ -161,4 +159,102 @@ export interface SystemConfig {
   aiKillSwitch: boolean;
   autoMatchingEnabled: boolean;
   globalPlatformFee: number;
+  schemaVersion: number;
+}
+
+export interface PitchSlide {
+  id: number;
+  title: string;
+  content: string;
+}
+
+export interface SOPItem {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  steps: string[];
+}
+
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  metadata?: any;
+  timestamp: string;
+}
+
+export enum ComplaintSeverity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
+}
+
+export interface Complaint {
+  id: string;
+  bookingId: string;
+  userId: string;
+  category: string;
+  description: string;
+  status: 'OPEN' | 'RESOLVED' | 'CLOSED';
+  severity: ComplaintSeverity;
+  createdAt: string;
+}
+
+export interface Incident {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  severity: string;
+  timestamp: string;
+}
+
+export interface CityConfig {
+  code: string;
+  name: string;
+  isEnabled: boolean;
+  platformFee: number;
+  minProviderBalance: number;
+}
+
+export enum PaymentMethod {
+  UPI = 'UPI',
+  COD = 'COD',
+  WALLET = 'WALLET'
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED'
+}
+
+export enum FraudType {
+  PRICE_TAMPERING = 'PRICE_TAMPERING',
+  CANCELLATION_VELOCITY = 'CANCELLATION_VELOCITY',
+  IDENTITY_THEFT = 'IDENTITY_THEFT'
+}
+
+export interface FraudSignal {
+  id: string;
+  userId: string;
+  type: FraudType;
+  score: number;
+  description: string;
+  timestamp: string;
+  isDismissed: boolean;
+}
+
+export interface Penalty {
+  id: string;
+  providerId: string;
+  amount: number;
+  reason: string;
+  bookingId?: string;
+  timestamp: string;
 }

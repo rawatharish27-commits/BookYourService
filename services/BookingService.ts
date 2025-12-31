@@ -1,35 +1,19 @@
-
 import { db } from './DatabaseService';
 import { Booking, BookingStatus, UserRole, SLATier, ProviderStatus, VerificationStatus } from '../types';
-import { ai } from './AIIntelligenceService';
 
 class BookingService {
   private readonly SLA_MINUTES = {
-    [SLATier.GOLD]: 15,
-    [SLATier.SILVER]: 45,
-    [SLATier.BRONZE]: 120
+    [SLATier.GOLD]: 30,
+    [SLATier.SILVER]: 90,
+    [SLATier.BRONZE]: 240
   };
 
-  constructor() {
-    setInterval(() => this.checkSLA(), 30000);
-  }
-
-  private checkSLA() {
-    const now = new Date();
-    db.getBookings().forEach(b => {
-      if (!b.isSLABreached && ![BookingStatus.COMPLETED, BookingStatus.CANCELLED].includes(b.status) && new Date(b.slaDeadline) < now) {
-        db.updateBooking(b.id, { isSLABreached: true });
-        db.audit('SYSTEM', 'SLA_BREACH', 'Booking', { bookingId: b.id }, 'CRITICAL');
-      }
-    });
-  }
-
   async create(userId: string, problem: any, city: string): Promise<Booking> {
-    const slaMinutes = this.SLA_MINUTES[problem.slaTier as SLATier] || 60;
+    const slaMinutes = this.SLA_MINUTES[problem.slaTier as SLATier] || 120;
     const deadline = new Date(Date.now() + slaMinutes * 60000).toISOString();
 
     const booking: Booking = {
-      id: `BK_${Date.now()}`,
+      id: `BK_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       userId,
       serviceId: problem.id,
       problemTitle: problem.title,
@@ -46,10 +30,11 @@ class BookingService {
     };
 
     db.getBookings().push(booking);
+    await db.audit(userId, 'BOOKING_CREATED', 'Booking', { bookingId: booking.id, title: problem.title });
     db.save();
     
-    ai.predictCancellation(booking.id);
-    this.matchProvider(booking.id);
+    // Simulate immediate automated matching
+    setTimeout(() => this.matchProvider(booking.id), 1000);
     
     return booking;
   }
@@ -66,12 +51,14 @@ class BookingService {
     );
 
     if (eligibleProviders.length > 0) {
-      const bestPro = eligibleProviders[0];
+      // Simple rank-based matching simulation
+      const bestPro = eligibleProviders.sort((a,b) => b.qualityScore - a.qualityScore)[0];
       await db.updateBooking(bookingId, { 
         providerId: bestPro.id, 
         status: BookingStatus.ACCEPTED,
         assignedAt: new Date().toISOString() 
       });
+      await db.audit('SYSTEM', 'PROVIDER_ASSIGNED', 'Booking', { bookingId, providerId: bestPro.id });
     }
   }
 }

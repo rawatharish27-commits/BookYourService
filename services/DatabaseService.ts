@@ -1,16 +1,15 @@
-
 import { User, Booking, WalletLedger, UserRole, UserStatus, VerificationStatus, SystemConfig, Problem, AdminRole, Category } from '../types';
 import { generateProblems, CATEGORIES } from '../constants';
 
 class DatabaseService {
-  private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V11';
+  private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V12';
   private db: any = {
     users: [],
     bookings: [],
     ledger: [],
     auditLogs: [],
     problems: [],
-    config: { schemaVersion: 11.0, aiKillSwitch: false, autoMatchingEnabled: true, globalPlatformFee: 10 }
+    config: { schemaVersion: 12.0, aiKillSwitch: false, autoMatchingEnabled: true, globalPlatformFee: 10 }
   };
 
   constructor() {
@@ -21,11 +20,13 @@ class DatabaseService {
     const data = localStorage.getItem(this.STORAGE_KEY);
     if (data) this.db = JSON.parse(data);
     
+    // Core Ontology Integrity Check
     if (!this.db.problems || this.db.problems.length < 1000) {
       this.db.problems = generateProblems();
       this.save();
     }
 
+    // Provisioning Super Admin Governance Root
     if (!this.db.users.find((u: any) => u.id === 'ADMIN_ROOT')) {
       this.db.users.push({
         id: 'ADMIN_ROOT',
@@ -81,7 +82,6 @@ class DatabaseService {
     this.save();
   }
 
-  // Updated audit method to include severity parameter to resolve argument count mismatch in BookingService.ts
   async audit(actorId: string, action: string, entity: string, metadata?: any, severity: string = 'INFO') {
     this.db.auditLogs.push({
       id: `AUDIT_${Date.now()}`,

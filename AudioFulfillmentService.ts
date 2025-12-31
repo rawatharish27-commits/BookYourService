@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 
 class AudioFulfillmentService {
@@ -6,7 +5,9 @@ class AudioFulfillmentService {
 
   async playVoiceSOP(sopSteps: string[], providerName: string) {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const key = process.env.API_KEY || "";
+      const ai = new GoogleGenAI({ apiKey: key });
+      
       const prompt = `
         Generate a professional training conversation between Joe (Senior Expert) and Jane (Junior Technician).
         They are discussing these SOP steps: ${sopSteps.join(', ')}.
@@ -29,7 +30,11 @@ class AudioFulfillmentService {
         }
       });
 
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const candidate = response.candidates?.[0];
+      const parts = candidate?.content?.parts;
+      const audioPart = parts?.find(p => p.inlineData);
+      const base64Audio = audioPart?.inlineData?.data;
+
       if (base64Audio) {
         await this.playRawAudio(base64Audio);
       }
@@ -39,17 +44,24 @@ class AudioFulfillmentService {
   }
 
   private async playRawAudio(base64: string) {
-    if (!this.audioCtx) this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    if (!this.audioCtx) {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      this.audioCtx = new AudioCtxClass({ sampleRate: 24000 });
+    }
     
     const binaryString = atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     
     const dataInt16 = new Int16Array(bytes.buffer);
     const buffer = this.audioCtx.createBuffer(1, dataInt16.length, 24000);
     const channelData = buffer.getChannelData(0);
-    for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+    for (let i = 0; i < dataInt16.length; i++) {
+      channelData[i] = dataInt16[i] / 32768.0;
+    }
 
     const source = this.audioCtx.createBufferSource();
     source.buffer = buffer;

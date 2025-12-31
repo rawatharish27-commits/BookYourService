@@ -59,32 +59,6 @@ export enum SLATier {
   GOLD = 'GOLD'
 }
 
-export enum PaymentMethod {
-  UPI = 'UPI',
-  COD = 'COD',
-  CARD = 'CARD'
-}
-
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  FAILURE = 'FAILURE',
-  REFUNDED = 'REFUNDED'
-}
-
-export enum ComplaintSeverity {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL'
-}
-
-export enum FraudType {
-  PRICE_TAMPERING = 'PRICE_TAMPERING',
-  CANCELLATION_VELOCITY = 'CANCELLATION_VELOCITY',
-  ACCOUNT_SHARING = 'ACCOUNT_SHARING'
-}
-
 export interface Addon {
   id: string;
   name: string;
@@ -101,7 +75,6 @@ export interface User {
   providerStatus?: ProviderStatus;
   verificationStatus: VerificationStatus;
   city: string;
-  state_code?: string;
   walletBalance: number;
   createdAt: string;
   kycDetails?: {
@@ -114,14 +87,12 @@ export interface User {
   fraudScore: number;
   abuseScore: number;
   qualityScore: number;
-  trustBadge?: 'BRONZE' | 'SILVER' | 'GOLD' | 'ELITE';
-  isProbation: boolean;
   jobCount: number;
-  savedAddresses?: string[];
-  rank?: number;
+  isProbation: boolean;
   deviceId?: string;
   lastLogin?: string;
-  mfaEnabled?: boolean;
+  // Added rank property to support ranking engine
+  rank?: number;
 }
 
 export interface Booking {
@@ -132,10 +103,6 @@ export interface Booking {
   problemTitle: string;
   status: BookingStatus;
   createdAt: string;
-  assignedAt?: string;
-  acceptedAt?: string;
-  startedAt?: string;
-  completedAt?: string;
   slaDeadline: string;
   isSLABreached: boolean;
   total?: number;
@@ -143,43 +110,17 @@ export interface Booking {
   maxPrice: number;
   addons: Addon[];
   city: string;
+  category?: string;
+  slaTier: SLATier;
+  assignedAt?: string;
+  // Added missing properties to support various services
+  cancelProbability?: number;
+  payment_status?: PaymentStatus;
+  payment_method?: PaymentMethod;
   rating?: number;
   review?: string;
   complaintId?: string;
-  payment_status?: PaymentStatus;
-  payment_method?: PaymentMethod;
-  cancelProbability?: number;
-  scheduledAt?: string;
-  slaTier: SLATier;
-  category?: string;
-}
-
-export interface AuditLog {
-  id: string;
-  actorId: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  metadata?: any;
-  timestamp: string;
-}
-
-export interface WalletLedger {
-  id: string;
-  userId: string;
-  bookingId?: string;
-  amount: number;
-  type: LedgerType;
-  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'REFUND' | 'PENALTY' | 'WITHDRAWAL';
-  timestamp: string;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  providerType: string;
-  isEnabled: boolean;
+  completedAt?: string;
 }
 
 export interface Problem {
@@ -198,6 +139,39 @@ export interface Problem {
   isEnabled: boolean;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  isEnabled: boolean;
+  providerType?: string;
+}
+
+export interface WalletLedger {
+  id: string;
+  userId: string;
+  bookingId?: string;
+  amount: number;
+  type: LedgerType;
+  category: 'PLATFORM_FEE' | 'SERVICE_PAYOUT' | 'REFUND' | 'PENALTY' | 'WITHDRAWAL';
+  timestamp: string;
+}
+
+export interface SystemConfig {
+  aiKillSwitch: boolean;
+  autoMatchingEnabled: boolean;
+  globalPlatformFee: number;
+  schemaVersion: number;
+}
+
+// Added missing interfaces for system-wide use
+
+export interface PitchSlide {
+  id: number;
+  title: string;
+  content: string;
+}
+
 export interface SOPItem {
   id: string;
   title: string;
@@ -206,10 +180,21 @@ export interface SOPItem {
   steps: string[];
 }
 
-export interface PitchSlide {
-  id: number;
-  title: string;
-  content: string;
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  metadata?: any;
+  timestamp: string;
+}
+
+export enum ComplaintSeverity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
 }
 
 export interface Complaint {
@@ -218,20 +203,18 @@ export interface Complaint {
   userId: string;
   category: string;
   description: string;
-  status: 'OPEN' | 'RESOLVED';
+  status: 'OPEN' | 'RESOLVED' | 'CLOSED';
   severity: ComplaintSeverity;
   createdAt: string;
 }
 
 export interface Incident {
   id: string;
-  bookingId?: string;
-  reportedBy: string;
-  type: 'THEFT' | 'HARASSMENT' | 'DAMAGE' | 'OTHER';
+  title: string;
   description: string;
-  status: 'INVESTIGATING' | 'RESOLVED';
-  severity: 'CRITICAL';
-  createdAt: string;
+  status: string;
+  severity: string;
+  timestamp: string;
 }
 
 export interface CityConfig {
@@ -242,19 +225,23 @@ export interface CityConfig {
   minProviderBalance: number;
 }
 
-export interface SystemConfig {
-  aiKillSwitch: boolean;
-  autoMatchingEnabled: boolean;
-  globalPlatformFee: number;
+export enum PaymentMethod {
+  UPI = 'UPI',
+  COD = 'COD',
+  WALLET = 'WALLET'
 }
 
-export interface Penalty {
-  id: string;
-  providerId: string;
-  amount: number;
-  reason: string;
-  bookingId?: string;
-  timestamp: string;
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED'
+}
+
+export enum FraudType {
+  PRICE_TAMPERING = 'PRICE_TAMPERING',
+  CANCELLATION_VELOCITY = 'CANCELLATION_VELOCITY',
+  IDENTITY_THEFT = 'IDENTITY_THEFT'
 }
 
 export interface FraudSignal {
@@ -265,4 +252,13 @@ export interface FraudSignal {
   description: string;
   timestamp: string;
   isDismissed: boolean;
+}
+
+export interface Penalty {
+  id: string;
+  providerId: string;
+  amount: number;
+  reason: string;
+  bookingId?: string;
+  timestamp: string;
 }

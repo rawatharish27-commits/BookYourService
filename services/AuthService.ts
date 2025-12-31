@@ -1,23 +1,21 @@
-
 import { db } from './DatabaseService';
 import { User, UserRole, UserStatus, VerificationStatus } from '../types';
 
 class AuthService {
-  private currentUser: User | null = null;
-  private readonly ACCESS_TOKEN_EXPIRY = 15 * 60 * 1000;
+  private readonly ACCESS_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
 
   async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string } | null> {
-    if (otp !== '1234') return null;
+    if (otp !== '1234') return null; // Static OTP for enterprise demo node
     
     const users = db.getUsers();
     let user = users.find(u => u.phone === phone && u.role === role);
 
     if (!user) {
-      if (role === UserRole.ADMIN) return null;
+      if (role === UserRole.ADMIN) return null; // Admin must be provisioned
       user = {
         id: `U_${Date.now()}`,
         phone,
-        name: `${role === UserRole.PROVIDER ? 'Partner' : 'User'}_${phone.slice(-4)}`,
+        name: `${role === UserRole.PROVIDER ? 'Partner' : 'Client'}_${phone.slice(-4)}`,
         role,
         status: role === UserRole.PROVIDER ? UserStatus.PROBATION : UserStatus.ACTIVE,
         verificationStatus: role === UserRole.PROVIDER ? VerificationStatus.REGISTERED : VerificationStatus.ACTIVE,
@@ -43,7 +41,6 @@ class AuthService {
     user.lastLogin = new Date().toISOString();
     await db.upsertUser(user);
     
-    this.currentUser = user;
     localStorage.setItem('DP_TOKEN', token);
     localStorage.setItem('DP_USER', JSON.stringify(user));
     
@@ -54,14 +51,12 @@ class AuthService {
     const userStr = localStorage.getItem('DP_USER');
     const token = localStorage.getItem('DP_TOKEN');
     if (userStr && token) {
-      this.currentUser = JSON.parse(userStr);
-      return { user: this.currentUser!, token };
+      return { user: JSON.parse(userStr), token };
     }
     return null;
   }
 
   logout() {
-    this.currentUser = null;
     localStorage.clear();
   }
 }
