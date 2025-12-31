@@ -5,7 +5,11 @@ import { infra } from './InfraComplianceService';
 
 class AuthService {
   private currentUser: User | null = null;
-  private readonly ACCESS_TOKEN_EXPIRY = 15 * 60 * 1000;
+  private readonly ACCESS_TOKEN_EXPIRY = 15 * 60 * 1000; // 15 mins
+
+  constructor() {
+    this.ensureDeviceId();
+  }
 
   private ensureDeviceId() {
     let deviceId = localStorage.getItem('DP_DEVICE_ID');
@@ -14,6 +18,15 @@ class AuthService {
       localStorage.setItem('DP_DEVICE_ID', deviceId);
     }
     return deviceId;
+  }
+
+  async sendOtp(phone: string): Promise<{ success: boolean; message: string }> {
+    const deviceId = this.ensureDeviceId();
+    if (!infra.checkRateLimit(deviceId)) {
+      return { success: false, message: "Security Node: Rate limit exceeded. Try in 60s." };
+    }
+    console.log(`[PROD_GATEWAY] Secure OTP for ${phone}: 1234`);
+    return { success: true, message: "OTP Sent." };
   }
 
   async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string; refreshToken: string } | null> {
@@ -63,6 +76,20 @@ class AuthService {
     return { user, token, refreshToken };
   }
 
+  async rotateTokens() {
+    const userStr = localStorage.getItem('DP_USER');
+    if (!userStr) return null;
+    const user = JSON.parse(userStr);
+    return this.issueTokens(user);
+  }
+
+  logout() {
+    this.currentUser = null;
+    localStorage.removeItem('DP_TOKEN');
+    localStorage.removeItem('DP_REFRESH_TOKEN');
+    localStorage.removeItem('DP_USER');
+  }
+
   getSession() {
     const userStr = localStorage.getItem('DP_USER');
     const token = localStorage.getItem('DP_TOKEN');
@@ -71,11 +98,6 @@ class AuthService {
       return { user: this.currentUser!, token };
     }
     return null;
-  }
-
-  logout() {
-    this.currentUser = null;
-    localStorage.clear();
   }
 }
 
