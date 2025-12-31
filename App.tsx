@@ -1,10 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
 import { auth } from './AuthService';
 import { migrationService } from './MigrationService';
-import { releaseManager } from './ReleaseManagementService';
-import { crashReporter } from './CrashReportingService';
 import UserModule from './components/UserModule';
 import ProviderModule from './components/ProviderModule';
 import AdminModule from './components/AdminModule';
