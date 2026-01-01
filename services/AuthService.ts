@@ -4,6 +4,12 @@ import { User, UserRole, UserStatus, VerificationStatus } from '../types';
 class AuthService {
   private readonly ACCESS_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
 
+  async sendOtp(phone: string): Promise<{ success: boolean; message: string }> {
+    // For demo purposes, log the OTP to console
+    console.log(`[DEMO] OTP for ${phone}: 1234`);
+    return { success: true, message: "OTP sent to your mobile number." };
+  }
+
   async verifyOtp(phone: string, otp: string, role: UserRole): Promise<{ user: User; token: string } | null> {
     if (otp !== '1234') return null; // Static OTP for enterprise demo node
     

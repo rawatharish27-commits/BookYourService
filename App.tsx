@@ -46,13 +46,16 @@ const App: React.FC = () => {
     setView('login');
   };
 
-  const handleLogin = async () => {
-    const res = await auth.verifyOtp(phone, otp, role);
-    if (res) {
-      setSession(res);
-      setView('app');
+  const handleSendOtp = async () => {
+    if (!phone.trim()) {
+      alert("Please enter a mobile number.");
+      return;
+    }
+    const result = await auth.sendOtp(phone);
+    if (result.success) {
+      setStep('otp');
     } else {
-      alert("Invalid Node Identity.");
+      alert(result.message);
     }
   };
 
@@ -99,7 +102,7 @@ const App: React.FC = () => {
                   <option value={UserRole.ADMIN}>Admin Governance</option>
                 </select>
                 <input type="tel" placeholder="Mobile Node" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-center text-xl outline-none focus:border-blue-500 text-[#0A2540]" value={phone} onChange={e => setPhone(e.target.value)} />
-                <button onClick={() => setStep('otp')} className="w-full bg-[#0A2540] text-white py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-colors">Send OTP</button>
+                <button onClick={handleSendOtp} className="w-full bg-[#0A2540] text-white py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-colors">Send OTP</button>
               </div>
             ) : (
               <div className="space-y-6">
