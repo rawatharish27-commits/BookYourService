@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { db } from './services/DatabaseService';
 
 async function bootstrap() {
-  console.log("🚀 DOORSTEP PRO | BACKEND NODE INITIALIZING...");
+  console.log("🚀 BOOKYOURSERVICE | BACKEND NODE INITIALIZING...");
   
   // Simulated express/http server for Cloud Run health checks
   // Cloud Run requires the container to listen on $PORT (usually 8080)

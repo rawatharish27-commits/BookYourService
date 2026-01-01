@@ -1,4 +1,4 @@
-# DoorStep Pro: Enterprise Service Fulfillment Platform
+# BookYourService: Enterprise Service Fulfillment Platform
 
 Professional-grade monorepo for a high-frequency home service marketplace.
 

@@ -45,7 +45,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ role, city }) => {
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: `You are the DoorStep Pro Hub Intelligence. Help the ${role} in ${city} manage their services. You can identify problems and suggest nearby hardware stores using Maps.`,
+          systemInstruction: `You are the BookYourService Hub Intelligence. Help the ${role} in ${city} manage their services. You can identify problems and suggest nearby hardware stores using Maps.`,
           tools: [{ googleMaps: {} }]
         }
       });

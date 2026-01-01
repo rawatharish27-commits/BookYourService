@@ -34,8 +34,8 @@ class InfraComplianceService {
 
   getDeploymentStatus() {
     return {
-      service: 'doorstep-pro-app',
-      region: 'us-central1',
+      service: 'bookyourservice',
+      region: 'europe-west1',
       version: this.revisions.find(r => r.status === 'STABLE')?.id || 'UNKNOWN',
       infra: {
         cloudRun: 'HEALTHY',

@@ -60,7 +60,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-6 space-y-6">
          <div className="w-24 h-24 bg-white rounded-[3rem] flex items-center justify-center text-5xl shadow-3xl animate-pulse">🛠️</div>
-         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none text-center">DoorStep<br/><span className="text-blue-500">Pro</span></h1>
+         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none text-center">Book<br/><span className="text-blue-500">YourService</span></h1>
          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-blue-500 animate-loading-bar"></div>
          </div>

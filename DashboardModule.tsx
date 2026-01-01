@@ -46,7 +46,7 @@ const DashboardModule: React.FC<Props> = ({ problems, user }) => {
       <header className="flex justify-between items-end animate-fadeIn">
          <div>
             <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.3em]">Client Hub</p>
-            <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter uppercase leading-none italic">DoorStep<br/><span className="text-blue-500">Pro.</span></h1>
+            <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter uppercase leading-none italic">Book<br/><span className="text-blue-500">YourService.</span></h1>
          </div>
          <label className="w-16 h-16 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-xl shadow-2xl cursor-pointer hover:scale-110 transition-transform">
             {isScanning ? <span className="animate-pulse">⏳</span> : '📷'}

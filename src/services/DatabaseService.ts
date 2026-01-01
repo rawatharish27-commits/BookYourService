@@ -3,7 +3,7 @@ import { User, Booking, WalletLedger, UserRole, UserStatus, VerificationStatus, 
 import { generateProblems, CATEGORIES } from '../../constants';
 
 class DatabaseService {
-  private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V12';
+  private readonly STORAGE_KEY = 'BOOKYOURSERVICE_CORE_DB_V12';
   private db: any = {
     users: [],
     bookings: [],

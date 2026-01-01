@@ -107,7 +107,7 @@ export const SOP_LIST: SOPItem[] = [
 
 export const PITCH_SLIDES: PitchSlide[] = [
   { id: 1, title: "The Problem", content: "The home service market is highly fragmented, plagued by non-standard pricing, unreliable service quality, and zero accountability nodes." },
-  { id: 2, title: "The Solution", content: "Doorstep Pro: A technology-first operational hub providing standardized, high-trust home service fulfillment through a unified system ontology." },
+  { id: 2, title: "The Solution", content: "BookYourService: A technology-first operational hub providing standardized, high-trust home service fulfillment through a unified system ontology." },
   { id: 3, title: "Service Ontology", content: "Our library of 2,000+ distinct problem nodes, each with system-locked pricing caps, eliminates bargaining and ensures financial transparency." },
   { id: 4, title: "Operational SOPs", content: "Every job is governed by strict safety and diagnostic SOPs, ensuring consistent delivery quality across all regional operational hubs." },
   { id: 5, title: "Partner Ecosystem", content: "Advanced partner verification nodes including identity audit and biometric-backed onboarding ensure a professional and safe supply layer." },

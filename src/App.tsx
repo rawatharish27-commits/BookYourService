@@ -47,7 +47,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-6 space-y-6">
          <div className="w-24 h-24 bg-white rounded-[3rem] flex items-center justify-center text-5xl shadow-3xl animate-pulse">🛠️</div>
-         <h1 className="text-3xl font-black text-white italic tracking-tighter">DOORSTEP<span className="text-blue-500">PRO</span></h1>
+         <h1 className="text-3xl font-black text-white italic tracking-tighter">BOOK<span className="text-blue-500">YOURSERVICE</span></h1>
          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-blue-500 animate-loading-bar"></div>
          </div>
@@ -75,7 +75,7 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-[#0A2540] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-md rounded-[4rem] p-12 shadow-3xl space-y-10 animate-slideUp">
             <div className="text-center">
-              <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter italic">DOORSTEP<span className="text-blue-500">PRO</span></h1>
+              <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter italic">BOOK<span className="text-blue-500">YOURSERVICE</span></h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Identity Node Login</p>
             </div>
             {step === 'phone' ? (
