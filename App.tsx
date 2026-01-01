@@ -1,25 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
-import { auth } from './AuthService';
-import DashboardModule from './components/UserModule';
-import ProviderModule from './components/ProviderModule';
-import AdminModule from './components/AdminModule';
-import AIAssistant from './components/AIAssistant';
+import auth from './AuthService';
+import DashboardModule from './DashboardModule';
+import ProviderModule from './ProviderModule';
+import AdminModule from './AdminModule';
+import InvestorModule from './InvestorModule';
+import AIAssistant from './AIAssistant';
 import { generateProblems } from './constants';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<{ user: User; token: string } | null>(null);
-  const [problems] = useState(generateProblems());
+  const [problems] = useState<any[]>(() => generateProblems());
   const [view, setView] = useState<'splash' | 'login' | 'app' | 'key_select'>('splash');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [phone, setPhone] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
   const [role, setRole] = useState<UserRole>(UserRole.USER);
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
 
   useEffect(() => {
     const init = async () => {
-      // Check for AI Studio Key in production context
-      const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
+      const aistudio: any = (window as any).aistudio;
+      const hasKey: boolean = aistudio ? await aistudio.hasSelectedApiKey() : true;
       
       if (!hasKey && process.env.NODE_ENV === 'production') {
         setView('key_select');
@@ -33,11 +34,15 @@ const App: React.FC = () => {
         }
       }
     };
-    setTimeout(init, 1500);
+    const timer = setTimeout(init, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleOpenKeySelect = async () => {
-    await (window as any).aistudio?.openSelectKey();
+    const aistudio: any = (window as any).aistudio;
+    if (aistudio) {
+      await aistudio.openSelectKey();
+    }
     setView('login');
   };
 
@@ -47,7 +52,7 @@ const App: React.FC = () => {
       setSession(res);
       setView('app');
     } else {
-      alert("Invalid identity node.");
+      alert("Invalid Node Identity.");
     }
   };
 
@@ -55,7 +60,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-6 space-y-6">
          <div className="w-24 h-24 bg-white rounded-[3rem] flex items-center justify-center text-5xl shadow-3xl animate-pulse">🛠️</div>
-         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">DoorStep<span className="text-blue-500">Pro</span></h1>
+         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none text-center">DoorStep<br/><span className="text-blue-500">Pro</span></h1>
          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-blue-500 animate-loading-bar"></div>
          </div>
@@ -68,10 +73,11 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-12 text-center space-y-8 animate-fadeIn">
         <div className="text-8xl">🔑</div>
         <div className="space-y-4">
-          <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Authorization Required</h2>
-          <p className="text-blue-100/60 text-sm max-w-sm mx-auto font-medium">Please select a paid API key to unlock the enterprise-grade AI diagnostic features.</p>
+          <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none text-center">Authorization Required</h2>
+          <p className="text-blue-100/60 text-sm max-w-sm mx-auto font-medium text-center uppercase tracking-widest leading-relaxed">Please select a paid API key to unlock enterprise diagnostic features.</p>
         </div>
         <button onClick={handleOpenKeySelect} className="bg-blue-600 text-white px-10 py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl hover:scale-105 transition-transform">Select Key</button>
+        <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-400 text-[10px] font-black uppercase underline underline-offset-4">Billing Documentation</a>
       </div>
     );
   }
@@ -82,7 +88,7 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-[#0A2540] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-md rounded-[4rem] p-12 shadow-3xl space-y-10 animate-slideUp">
             <div className="text-center">
-              <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter italic uppercase">DoorStep<span className="text-blue-500">Pro</span></h1>
+              <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter italic uppercase leading-none">DoorStep<br/><span className="text-blue-500">Pro</span></h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Identity Node Authorization</p>
             </div>
             {step === 'phone' ? (
@@ -99,7 +105,7 @@ const App: React.FC = () => {
               <div className="space-y-6">
                 <input type="text" placeholder="0000" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-center text-4xl tracking-widest outline-none text-[#0A2540]" maxLength={4} value={otp} onChange={e => setOtp(e.target.value)} />
                 <button onClick={handleLogin} className="w-full bg-blue-600 text-white py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 transition-colors">Verify Node</button>
-                <button onClick={() => setStep('phone')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest">Wrong Number?</button>
+                <button onClick={() => setStep('phone')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest text-center mt-4">Wrong Number?</button>
               </div>
             )}
           </div>
@@ -111,7 +117,7 @@ const App: React.FC = () => {
             {session?.user.role === UserRole.PROVIDER && <ProviderModule providerId={session.user.id} />}
             {session?.user.role === UserRole.ADMIN && <AdminModule />}
           </main>
-          <AIAssistant role={session?.user.role as any} city={session?.user.city || 'Delhi'} />
+          {session?.user && <AIAssistant role={session.user.role as any} city={session.user.city || 'Delhi'} />}
         </>
       )}
     </div>

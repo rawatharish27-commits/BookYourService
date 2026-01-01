@@ -2,9 +2,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Problem, Booking, User, BookingStatus } from '../types';
 import { CATEGORIES } from '../constants';
-import { db } from '../DatabaseService';
+// Fixed: Using default import for db service
+import db from '../DatabaseService';
 import { bookingService } from '../BookingService';
 import { customerService } from '../CustomerService';
+// Fix: Using named import for visualAI service as it is not a default export
 import { visualAI } from '../VisualDiagnosticsService';
 
 interface UserModuleProps {

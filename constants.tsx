@@ -1,11 +1,9 @@
-
 import { Category, PitchSlide, Problem, SLATier, SOPItem } from './types';
 
-export const PLATFORM_FEE = 10;
-export const VISIT_CHARGE = 100;
+export const PLATFORM_FEE: number = 10;
+export const VISIT_CHARGE: number = 100;
 
 export const CATEGORIES: Category[] = [
-  // Fixed: Added required isEnabled property to all category definitions to comply with the Category interface.
   { id: 'ELECTRICAL', name: 'Electrical', icon: '⚡', providerType: 'Electrician', isEnabled: true },
   { id: 'PLUMBING', name: 'Plumbing', icon: '🚰', providerType: 'Plumber', isEnabled: true },
   { id: 'AC', name: 'AC & Cooling', icon: '❄️', providerType: 'AC Technician', isEnabled: true },
@@ -46,7 +44,6 @@ export const generateProblems = (): Problem[] => {
   let globalIdCounter = 1;
 
   CATEGORIES.forEach(cat => {
-    // Generate 80 deep problems per category = 2000 total
     for (let i = 0; i < 80; i++) {
       const templateSet = PROBLEM_TEMPLATES[i % PROBLEM_TEMPLATES.length];
       const template = templateSet.templates[Math.floor(Math.random() * templateSet.templates.length)];
@@ -69,7 +66,7 @@ export const generateProblems = (): Problem[] => {
           { id: `add_${globalIdCounter}_3`, name: "Testing & Certification", price: 99 }
         ],
         description: `Standardized ${cat.name.toLowerCase()} support for ${templateSet.sub.toLowerCase()} problems. No bargaining - locked system price.`,
-        providerRole: cat.providerType,
+        providerRole: cat.providerType || 'Service Agent',
         severity: (i % 5) + 1,
         slaTier: i % 3 === 0 ? SLATier.GOLD : i % 3 === 1 ? SLATier.SILVER : SLATier.BRONZE,
         isEnabled: true
@@ -108,66 +105,17 @@ export const SOP_LIST: SOPItem[] = [
   }
 ];
 
-// Added PITCH_SLIDES for the PitchModule investor deck component
 export const PITCH_SLIDES: PitchSlide[] = [
-  {
-    id: 1,
-    title: "The Problem",
-    content: "The home service market is highly fragmented, plagued by non-standard pricing, unreliable service quality, and zero accountability nodes."
-  },
-  {
-    id: 2,
-    title: "The Solution",
-    content: "Doorstep Pro: A technology-first operational hub providing standardized, high-trust home service fulfillment through a unified system ontology."
-  },
-  {
-    id: 3,
-    title: "Service Ontology",
-    content: "Our library of 2,000+ distinct problem nodes, each with system-locked pricing caps, eliminates bargaining and ensures financial transparency."
-  },
-  {
-    id: 4,
-    title: "Operational SOPs",
-    content: "Every job is governed by strict safety and diagnostic SOPs, ensuring consistent delivery quality across all regional operational hubs."
-  },
-  {
-    id: 5,
-    title: "Partner Ecosystem",
-    content: "Advanced partner verification nodes including identity audit and biometric-backed onboarding ensure a professional and safe supply layer."
-  },
-  {
-    id: 6,
-    title: "AI Intelligence",
-    content: "Our proprietary AI engines handle real-time supply-demand matching, predictive demand forecasting, and multi-layered fraud risk analysis."
-  },
-  {
-    id: 7,
-    title: "Quality Governance",
-    content: "Automated quality score calculation and mandatory retraining triggers maintain a high-performance supply network with 99%+ SLA compliance."
-  },
-  {
-    id: 8,
-    title: "Financial Infrastructure",
-    content: "Instant UPI settlement nodes and automated platform fee reconciliation ensure healthy unit economics and partner retention."
-  },
-  {
-    id: 9,
-    title: "Regional Scalability",
-    content: "Standardized city node configurations and local hub management protocols allow for rapid geographical expansion with zero quality dilution."
-  },
-  {
-    id: 10,
-    title: "System Integrity",
-    content: "Immutable forensic audit logs and real-time operational monitoring provide complete visibility and governance for Super Admin controllers."
-  },
-  {
-    id: 11,
-    title: "Market Opportunity",
-    content: "We are organizing the unorganized segment of a $200B+ market, focusing on high-frequency maintenance and repair tasks."
-  },
-  {
-    id: 12,
-    title: "Growth Vision",
-    content: "Scaling from 3 to 50 operational nodes by EOY, integrating IoT for predictive maintenance and automated problem detection."
-  }
+  { id: 1, title: "The Problem", content: "The home service market is highly fragmented, plagued by non-standard pricing, unreliable service quality, and zero accountability nodes." },
+  { id: 2, title: "The Solution", content: "Doorstep Pro: A technology-first operational hub providing standardized, high-trust home service fulfillment through a unified system ontology." },
+  { id: 3, title: "Service Ontology", content: "Our library of 2,000+ distinct problem nodes, each with system-locked pricing caps, eliminates bargaining and ensures financial transparency." },
+  { id: 4, title: "Operational SOPs", content: "Every job is governed by strict safety and diagnostic SOPs, ensuring consistent delivery quality across all regional operational hubs." },
+  { id: 5, title: "Partner Ecosystem", content: "Advanced partner verification nodes including identity audit and biometric-backed onboarding ensure a professional and safe supply layer." },
+  { id: 6, title: "AI Intelligence", content: "Our proprietary AI engines handle real-time supply-demand matching, predictive demand forecasting, and multi-layered fraud risk analysis." },
+  { id: 7, title: "Quality Governance", content: "Automated quality score calculation and mandatory retraining triggers maintain a high-performance supply network with 99%+ SLA compliance." },
+  { id: 8, title: "Financial Infrastructure", content: "Instant UPI settlement nodes and automated platform fee reconciliation ensure healthy unit economics and partner retention." },
+  { id: 9, title: "Regional Scalability", content: "Standardized city node configurations and local hub management protocols allow for rapid geographical expansion with zero quality dilution." },
+  { id: 10, title: "System Integrity", content: "Immutable forensic audit logs and real-time operational monitoring provide complete visibility and governance for Super Admin controllers." },
+  { id: 11, title: "Market Opportunity", content: "We are organizing the unorganized segment of a $200B+ market, focusing on high-frequency maintenance and repair tasks." },
+  { id: 12, title: "Growth Vision", content: "Scaling from 3 to 50 operational nodes by EOY, integrating IoT for predictive maintenance and automated problem detection." }
 ];

@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { User, UserRole, UserStatus, FraudSignal, FraudType, ProviderStatus } from './types';
 
 class FraudRiskService {

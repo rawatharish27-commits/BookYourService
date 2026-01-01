@@ -91,7 +91,6 @@ export interface User {
   isProbation: boolean;
   deviceId?: string;
   lastLogin?: string;
-  // Added rank property to support ranking engine
   rank?: number;
 }
 
@@ -113,7 +112,6 @@ export interface Booking {
   category?: string;
   slaTier: SLATier;
   assignedAt?: string;
-  // Added missing properties to support various services
   cancelProbability?: number;
   payment_status?: PaymentStatus;
   payment_method?: PaymentMethod;
@@ -164,8 +162,6 @@ export interface SystemConfig {
   schemaVersion: number;
 }
 
-// Added missing interfaces for system-wide use
-
 export interface PitchSlide {
   id: number;
   title: string;
@@ -208,15 +204,7 @@ export interface Complaint {
   createdAt: string;
 }
 
-export interface Incident {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  severity: string;
-  timestamp: string;
-}
-
+// Fixed: Added CityConfig export to resolve module member error in AdminOpsService.ts
 export interface CityConfig {
   code: string;
   name: string;

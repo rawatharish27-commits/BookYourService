@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
-import { db } from '../DatabaseService';
+// Fixed: Using default import for db service
+import db from '../DatabaseService';
 import { 
   UserRole, VerificationStatus, BookingStatus, Problem
 } from '../types';

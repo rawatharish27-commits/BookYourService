@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Booking, User, BookingStatus, ProviderStatus, Addon, VerificationStatus } from '../types';
-import { db } from '../DatabaseService';
+// Fixed: Using default import for db service
+import db from '../DatabaseService';
 import { providerService } from '../ProviderService';
-import { voiceAI } from '../AudioFulfillmentService';
+// Fixed: Using default import for voiceAI service
+import voiceAI from '../AudioFulfillmentService';
 import { billingService } from '../BillingService';
 
 interface ProviderModuleProps {
@@ -39,7 +41,8 @@ const ProviderModule: React.FC<ProviderModuleProps> = ({ providerId }) => {
       alert("Job Settled. Platform node updated.");
       setCurrentScreen('DASHBOARD');
     } else {
-      alert(res.error);
+      // Fix: Use type assertion to access error property on the union response from billingService
+      alert((res as any).error);
     }
   };
 

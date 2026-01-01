@@ -1,4 +1,4 @@
-import { db } from './DatabaseService';
+import db from './DatabaseService';
 import { User, UserRole, UserStatus, VerificationStatus } from './types';
 
 class AuthService {
@@ -57,4 +57,5 @@ class AuthService {
   }
 }
 
-export const auth = new AuthService();
+const auth = new AuthService();
+export default auth;

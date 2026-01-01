@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { AdminRole, UserRole, CityConfig, Problem, Category, BookingStatus, VerificationStatus } from './types';
 import { paymentService } from './PaymentService';
 import { providerService } from './ProviderService';

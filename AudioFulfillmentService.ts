@@ -58,4 +58,5 @@ class AudioFulfillmentService {
   }
 }
 
-export const voiceAI = new AudioFulfillmentService();
+const voiceAI = new AudioFulfillmentService();
+export default voiceAI;

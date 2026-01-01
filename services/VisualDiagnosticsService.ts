@@ -5,35 +5,37 @@ import { db } from './DatabaseService';
 class VisualDiagnosticsService {
   async analyzeProblemImage(base64Image: string, mimeType: string): Promise<{ suggestedProblem: Problem | null; confidence: number; reasoning: string }> {
     try {
-      // Ensure API_KEY is available or at least not causing a syntax error
-      const apiKey = process.env.API_KEY || "";
-      const ai = new GoogleGenAI({ apiKey });
+      const apiKey: string = process.env.API_KEY || "";
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       
-      const problems = db.getProblems();
-      const ontologySample = (problems || []).slice(0, 50);
+      const allProblems: Problem[] = db.getProblems();
+      const ontologySample: Problem[] = allProblems.slice(0, 50);
       
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
-        contents: [{
+        model: 'gemini-3-pro-preview',
+        contents: {
           parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: `TECHNICAL ANALYSIS: Identify home service fault from image. Match against ontology: ${ontologySample.map(p => p.title).join(', ')}. Return JSON ONLY: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
+            { inlineData: { data: base64Image, mimeType: mimeType } },
+            { text: `TECHNICAL ANALYSIS: Identify technical fault from image. Compare against ontology: ${ontologySample.map(p => p.title).join(', ')}. Return JSON ONLY: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
           ]
-        }],
+        },
         config: {
+          thinkingConfig: { thinkingBudget: 4000 },
           responseMimeType: 'application/json'
         }
       });
 
-      const responseText = response.text || '{}';
+      const responseText: string = response.text || '{}';
       const result = JSON.parse(responseText);
-      const matched = (problems || []).find(p => p.title === result.matchedTitle);
+      const matched: Problem | null = allProblems.find(p => p.title === result.matchedTitle) || null;
 
-      return {
-        suggestedProblem: matched || null,
+      const finalResult = {
+        suggestedProblem: matched,
         confidence: result.confidence || 0,
-        reasoning: result.reasoning || "Diagnostic processing complete."
+        reasoning: result.reasoning || "Node processing complete."
       };
+      
+      return finalResult;
     } catch (error) {
       console.error("AI Node Error:", error);
       throw error;

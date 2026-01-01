@@ -1,6 +1,7 @@
 
 import { PaymentMethod, PaymentStatus, BookingStatus, LedgerType } from './types';
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 
 class PaymentService {
   private canProcessPayment(bookingId: string): boolean {

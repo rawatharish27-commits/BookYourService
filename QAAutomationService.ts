@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { bookingService } from './BookingService';
 import { billingService } from './BillingService';
 import { customerService } from './CustomerService';
@@ -99,7 +100,8 @@ class QAAutomationService {
         this.addLog("!!! CRITICAL FAILURE: Price lock bypassed!");
         await db.audit('QA_BOT', 'PRICE_LOCK_FAILURE', 'SystemIntegrity', { bookingId: booking.id }, 'CRITICAL');
       } else {
-        this.addLog(`SUCCESS: Billing blocked. Error: ${result.error}`);
+        // Fix: Use type assertion to access error property on the union result from billingService
+        this.addLog(`SUCCESS: Billing blocked. Error: ${(result as any).error}`);
         await db.audit('QA_BOT', 'PRICE_LOCK_SUCCESS', 'SystemIntegrity', { bookingId: booking.id }, 'INFO');
       }
     } catch (e: any) {
@@ -120,7 +122,8 @@ class QAAutomationService {
       await db.updateBooking(booking.id, { status: BookingStatus.IN_PROGRESS });
       
       const res = await billingService.generateBill(booking.id, [problem.addons[0]]);
-      if (!res.success) throw new Error(res.error);
+      // Fix: Use type assertion to access error property on the union result from billingService
+      if (!res.success) throw new Error((res as any).error);
 
       await customerService.submitRating(booking.id, 5, "QA Verified Flow");
       this.addLog(">>> FULL CONSUMER LOOP SUCCESS <<<");

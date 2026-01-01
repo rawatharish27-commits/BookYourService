@@ -1,6 +1,7 @@
 
 import { FraudSignal, FraudType, UserRole } from './types';
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 
 class SecurityIntelligenceService {
   

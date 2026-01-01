@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { Booking, BookingStatus, UserRole, SLATier, ProviderStatus, VerificationStatus } from './types';
 import { ai } from './AIIntelligenceService';
 

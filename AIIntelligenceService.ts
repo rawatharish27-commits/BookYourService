@@ -1,6 +1,7 @@
 
-import { db } from './DatabaseService';
 import { User, Booking, BookingStatus, SLATier, UserRole } from './types';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 
 class AIIntelligenceService {
   

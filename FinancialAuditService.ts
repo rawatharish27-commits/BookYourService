@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { User, WalletLedger, UserRole } from './types';
 
 export interface AuditResult {

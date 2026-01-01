@@ -1,5 +1,6 @@
 
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 import { User, UserStatus, BookingStatus, ComplaintSeverity, UserRole } from './types';
 
 class QualityIntelligenceService {

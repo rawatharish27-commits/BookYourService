@@ -1,6 +1,7 @@
 
 import { User, Booking, BookingStatus } from './types';
-import { db } from './DatabaseService';
+// Fixed: Using default import for db service
+import db from './DatabaseService';
 
 class FraudDetectionEngine {
   

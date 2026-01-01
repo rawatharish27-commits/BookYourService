@@ -1,21 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { Problem } from './types';
-import { db } from './DatabaseService';
+import db from './DatabaseService';
 
 class VisualDiagnosticsService {
   async analyzeProblemImage(base64Image: string, mimeType: string): Promise<{ suggestedProblem: Problem | null; confidence: number; reasoning: string }> {
     try {
-      const apiKey = process.env.API_KEY || "";
-      const ai = new GoogleGenAI({ apiKey });
-      const problems = db.getProblems();
-      const ontologySample = problems.slice(0, 50);
+      const apiKeyVal: string = process.env.API_KEY || "";
+      const ai = new GoogleGenAI({ apiKey: apiKeyVal });
+      
+      const allProblemsList: Problem[] = db.getProblems();
+      const sampleSet: Problem[] = allProblemsList.slice(0, 50);
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: {
           parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: `SYSTEM ANALYSIS: Identify technical fault from image. Compare against ontology: ${ontologySample.map(p => p.title).join(', ')}. Return valid JSON: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
+            { inlineData: { data: base64Image, mimeType: mimeType } },
+            { text: `TECHNICAL ANALYSIS: Identify technical fault from image. Compare against ontology: ${sampleSet.map(p => p.title).join(', ')}. Return JSON ONLY: { "matchedTitle": string, "confidence": number, "reasoning": string }` }
           ]
         },
         config: {
@@ -24,20 +25,23 @@ class VisualDiagnosticsService {
         }
       });
 
-      const responseText = response.text || '{}';
-      const result = JSON.parse(responseText);
-      const matched = problems.find(p => p.title === result.matchedTitle) || null;
+      const responseTextVal: string = response.text || '{}';
+      const resultObj = JSON.parse(responseTextVal);
+      const matchedNode: Problem | null = allProblemsList.find(p => p.title === resultObj.matchedTitle) || null;
 
-      return {
-        suggestedProblem: matched,
-        confidence: result.confidence || 0,
-        reasoning: result.reasoning || "Node diagnostic processing finalized."
+      const finalOutcome = {
+        suggestedProblem: matchedNode,
+        confidence: resultObj.confidence || 0,
+        reasoning: resultObj.reasoning || "Node processing complete."
       };
+      
+      return finalOutcome;
     } catch (error) {
-      console.error("AI Diagnostic Node Critical Error:", error);
+      console.error("AI Node Error:", error);
       throw error;
     }
   }
 }
 
 export const visualAI = new VisualDiagnosticsService();
+export default visualAI;
