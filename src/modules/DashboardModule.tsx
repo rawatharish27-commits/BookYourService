@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Problem, Booking, User, BookingStatus } from '../types';
-import { CATEGORIES } from '../constants';
-import { db } from '../services/DatabaseService';
-import { bookingService } from '../services/BookingService';
-import { customerService } from '../services/CustomerService';
-import { visualAI } from '../services/VisualDiagnosticsService';
+import { CATEGORIES } from '../../constants';
+import { db } from '../../services/DatabaseService';
+import { bookingService } from '../../services/BookingService';
+import { customerService } from '../../services/CustomerService';
+import { visualAI } from '../../services/VisualDiagnosticsService';
 
 interface UserModuleProps {
   problems: Problem[];

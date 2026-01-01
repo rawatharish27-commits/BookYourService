@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PITCH_SLIDES } from '../constants';
+import { PITCH_SLIDES } from '../../constants';
 
 const InvestorModule: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);

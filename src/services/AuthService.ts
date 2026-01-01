@@ -1,7 +1,7 @@
 
 import { db } from './DatabaseService';
 import { User, UserRole, UserStatus, VerificationStatus } from '../types';
-import { infra } from './InfraComplianceService';
+import { infra } from '../../services/InfraComplianceService';
 
 class AuthService {
   private currentUser: User | null = null;

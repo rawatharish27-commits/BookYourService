@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, User } from './types';
-import { auth } from './services/AuthService';
-import { migrationService } from './services/MigrationService';
+import { auth } from '../services/AuthService';
+import { migrationService } from '../services/MigrationService';
 import DashboardModule from './modules/DashboardModule';
 import ProviderModule from './modules/ProviderModule';
 import AdminModule from './modules/AdminModule';
 import AIAssistant from './components/AIAssistant';
-import { generateProblems } from './constants';
+import { generateProblems } from '../constants';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<{ user: User; token: string } | null>(null);

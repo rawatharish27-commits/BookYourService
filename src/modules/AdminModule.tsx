@@ -3,13 +3,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
-import { db } from '../services/DatabaseService';
+import { db } from '../../services/DatabaseService';
 import { 
   UserRole, VerificationStatus, BookingStatus, Problem
-} from '../types';
-import { adminOps } from '../services/AdminOpsService';
-import { infra } from '../services/InfraComplianceService';
-import { qaLab } from '../services/QAAutomationService';
+} from '../../types';
+import { adminOps } from '../../services/AdminOpsService';
+import { infra } from '../../services/InfraComplianceService';
+import { qaLab } from '../../services/QAAutomationService';
 
 type AdminTab = 
   | 'DASHBOARD' 

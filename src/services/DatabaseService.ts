@@ -1,6 +1,6 @@
 
 import { User, Booking, WalletLedger, UserRole, UserStatus, VerificationStatus, SystemConfig, Problem, AdminRole, Category, AuditLog, Complaint, CityConfig } from '../types';
-import { generateProblems, CATEGORIES } from '../constants';
+import { generateProblems, CATEGORIES } from '../../constants';
 
 class DatabaseService {
   private readonly STORAGE_KEY = 'DOORSTEP_PRO_CORE_DB_V12';

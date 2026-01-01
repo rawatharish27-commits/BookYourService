@@ -33,7 +33,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ role, city }) => {
             setStatus('Listening...');
           },
           onmessage: async (message: LiveServerMessage) => {
-            if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
+            if (message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data) {
               playAudio(message.serverContent.modelTurn.parts[0].inlineData.data);
             }
           },

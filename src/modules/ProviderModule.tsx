@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Booking, User, BookingStatus, ProviderStatus, Addon, VerificationStatus } from '../types';
-import { db } from '../services/DatabaseService';
-import { providerService } from '../services/ProviderService';
-import { voiceAI } from '../services/AudioFulfillmentService';
-import { billingService } from '../services/BillingService';
+import { Booking, User, BookingStatus, ProviderStatus, Addon, VerificationStatus } from '../../types';
+import { db } from '../../services/DatabaseService';
+import { providerService } from '../../services/ProviderService';
+import { voiceAI } from '../../services/AudioFulfillmentService';
+import { billingService } from '../../services/BillingService';
 
 interface ProviderModuleProps {
   providerId: string;
