@@ -31,6 +31,7 @@ class DatabaseService {
       this.db.users.push({
         id: 'ADMIN_ROOT',
         phone: '9999999999',
+        email: 'admin@doorsteppro.com',
         name: 'Governance Root',
         role: UserRole.ADMIN,
         adminRole: AdminRole.SUPER_ADMIN,

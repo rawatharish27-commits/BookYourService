@@ -16,7 +16,12 @@ export enum UserStatus {
   SUSPENDED = 'SUSPENDED',
   PENDING_OTP = 'PENDING_OTP',
   PROBATION = 'PROBATION',
-  RETRAINING = 'RETRAINING'
+  RETRAINING = 'RETRAINING',
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
 }
 
 export enum ProviderStatus {
@@ -68,6 +73,8 @@ export interface Addon {
 export interface User {
   id: string;
   phone: string;
+  email?: string;
+  password?: string; // Hashed password
   name: string;
   role: UserRole;
   adminRole?: AdminRole;

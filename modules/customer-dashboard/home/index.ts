@@ -1,0 +1,19 @@
+// Customer Dashboard Home Components
+export { default as CustomerDashboard } from './CustomerDashboard';
+export { default as PopularServices } from './PopularServices';
+export { default as RecommendedServices } from './RecommendedServices';
+export { default as OffersDeals } from './OffersDeals';
+export { default as WalletBalance } from './WalletBalance';
+export { default as ActiveBookings } from './ActiveBookings';
+export { default as Rebook } from './Rebook';
+export { default as EmergencyBooking } from './EmergencyBooking';
+export { default as SupportShortcut } from './SupportShortcut';
+export { default as Notifications } from './Notifications';
+export { default as ReferralBanner } from './ReferralBanner';
+export { default as LoyaltyPoints } from './LoyaltyPoints';
+export { default as RatingReminders } from './RatingReminders';
+export { default as RecentlyViewed } from './RecentlyViewed';
+export { default as SavedProviders } from './SavedProviders';
+export { default as ServiceReminders } from './ServiceReminders';
+export { default as WeatherSuggestions } from './WeatherSuggestions';
+export { default as TimeBasedOffers } from './TimeBasedOffers';

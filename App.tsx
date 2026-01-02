@@ -6,16 +6,13 @@ import ProviderModule from './ProviderModule';
 import AdminModule from './AdminModule';
 import InvestorModule from './InvestorModule';
 import AIAssistant from './AIAssistant';
+import AuthModule from './modules/AuthModule';
 import { generateProblems } from './constants';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<{ user: User; token: string } | null>(null);
   const [problems] = useState<any[]>(() => generateProblems());
   const [view, setView] = useState<'splash' | 'login' | 'app' | 'key_select'>('splash');
-  const [phone, setPhone] = useState<string>('');
-  const [otp, setOtp] = useState<string>('');
-  const [role, setRole] = useState<UserRole>(UserRole.USER);
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
 
   useEffect(() => {
     const init = async () => {
@@ -46,17 +43,15 @@ const App: React.FC = () => {
     setView('login');
   };
 
-  const handleSendOtp = async () => {
-    if (!phone.trim()) {
-      alert("Please enter a mobile number.");
-      return;
-    }
-    const result = await auth.sendOtp(phone);
-    if (result.success) {
-      setStep('otp');
-    } else {
-      alert(result.message);
-    }
+  const handleLogin = (user: User, token: string) => {
+    setSession({ user, token });
+    setView('app');
+  };
+
+  const handleLogout = () => {
+    auth.logout();
+    setSession(null);
+    setView('login');
   };
 
   if (view === 'splash') {
@@ -88,31 +83,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       {view === 'login' ? (
-        <div className="min-h-screen bg-[#0A2540] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[4rem] p-12 shadow-3xl space-y-10 animate-slideUp">
-            <div className="text-center">
-              <h1 className="text-4xl font-black text-[#0A2540] tracking-tighter italic uppercase leading-none">DoorStep<br/><span className="text-blue-500">Pro</span></h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Identity Node Authorization</p>
-            </div>
-            {step === 'phone' ? (
-              <div className="space-y-6">
-                <select className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-bold appearance-none text-[#0A2540]" value={role} onChange={e => setRole(e.target.value as UserRole)}>
-                  <option value={UserRole.USER}>Customer Interface</option>
-                  <option value={UserRole.PROVIDER}>Partner Interface</option>
-                  <option value={UserRole.ADMIN}>Admin Governance</option>
-                </select>
-                <input type="tel" placeholder="Mobile Node" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-center text-xl outline-none focus:border-blue-500 text-[#0A2540]" value={phone} onChange={e => setPhone(e.target.value)} />
-                <button onClick={handleSendOtp} className="w-full bg-[#0A2540] text-white py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-colors">Send OTP</button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <input type="text" placeholder="0000" className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl font-black text-center text-4xl tracking-widest outline-none text-[#0A2540]" maxLength={4} value={otp} onChange={e => setOtp(e.target.value)} />
-                <button onClick={handleLogin} className="w-full bg-blue-600 text-white py-6 rounded-[2.5rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 transition-colors">Verify Node</button>
-                <button onClick={() => setStep('phone')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest text-center mt-4">Wrong Number?</button>
-              </div>
-            )}
-          </div>
-        </div>
+        <AuthModule onLogin={handleLogin} />
       ) : (
         <>
           <main className="animate-fadeIn">
@@ -121,6 +92,7 @@ const App: React.FC = () => {
             {session?.user.role === UserRole.ADMIN && <AdminModule />}
           </main>
           {session?.user && <AIAssistant role={session.user.role as any} city={session.user.city || 'Delhi'} />}
+          <button onClick={handleLogout} className="fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded">Logout</button>
         </>
       )}
     </div>
