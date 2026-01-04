@@ -211,6 +211,46 @@ class AuthService {
   logout() {
     localStorage.clear();
   }
+
+  // Forgot password - send reset OTP to email
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string; resetToken?: string }> {
+    const users = db.getUsers();
+    const user = users.find(u => u.email === email);
+    
+    if (!user) {
+      return { success: false, message: 'Email not found' };
+    }
+
+    // Generate reset token (in real app, this would be secure)
+    const resetToken = `RESET_${btoa(user.id + ':' + Date.now())}`;
+    
+    // In demo, just log it. In real app, send email
+    console.log(`[DEMO] Password reset token for ${email}: ${resetToken}`);
+    
+    return { success: true, message: 'Reset instructions sent to your email', resetToken };
+  }
+
+  // Reset password using token
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const decoded = atob(token.replace('RESET_', ''));
+      const [userId] = decoded.split(':');
+      
+      const users = db.getUsers();
+      const user = users.find(u => u.id === userId);
+      
+      if (!user) {
+        return { success: false, message: 'Invalid reset token' };
+      }
+
+      user.password = newPassword;
+      await db.upsertUser(user);
+      
+      return { success: true, message: 'Password reset successfully' };
+    } catch (error) {
+      return { success: false, message: 'Invalid reset token' };
+    }
+  }
 }
 
 export const auth = new AuthService();

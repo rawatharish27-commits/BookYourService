@@ -35,7 +35,7 @@ import {
 
 // Import customer dashboard components
 import { CustomerDashboard } from './customer-dashboard/home';
-import { ServiceSearch, ProviderProfile, CategoryBrowse, Filters, ProviderComparison, AvailabilityCalendar, SlotSelection, AddressManagement, PriceCalculator, CouponApply, WalletUsage, PaymentOptions, BookingConfirmation, LiveTracking } from './customer-dashboard/booking-flow';
+import { ServiceSearch, ProviderProfile, CategoryBrowse, Filters, ProviderComparison, AvailabilityCalendar, SlotSelection, AddressManagement, PriceCalculator, CouponApply, WalletUsage, PaymentOptions, BookingConfirmation, LiveTracking, PaymentSummaryScreen, ServiceDetailPage } from './customer-dashboard/booking-flow';
 import { ProfileEdit, BookingHistory } from './customer-dashboard/profile-account';
 import { HelpCenter } from './customer-dashboard/support-trust';
 
@@ -88,6 +88,7 @@ const CustomerModule: React.FC = () => {
       icon: <ShoppingCart />,
       children: [
         { id: 'service-search', label: 'Service Search', icon: <ShoppingCart /> },
+        { id: 'service-detail-page', label: 'Service Detail Page', icon: <ShoppingCart /> },
         { id: 'category-browse', label: 'Category Browse', icon: <ShoppingCart /> },
         { id: 'filters', label: 'Filters', icon: <ShoppingCart /> },
         { id: 'provider-comparison', label: 'Provider Comparison', icon: <ShoppingCart /> },
@@ -99,6 +100,7 @@ const CustomerModule: React.FC = () => {
         { id: 'coupon-apply', label: 'Coupon Apply', icon: <ShoppingCart /> },
         { id: 'wallet-usage', label: 'Wallet Usage', icon: <ShoppingCart /> },
         { id: 'payment-options', label: 'Payment Options', icon: <ShoppingCart /> },
+        { id: 'payment-summary-screen', label: 'Payment Summary Screen', icon: <ShoppingCart /> },
         { id: 'booking-confirmation', label: 'Booking Confirmation', icon: <ShoppingCart /> },
         { id: 'live-tracking', label: 'Live Tracking', icon: <ShoppingCart /> },
         { id: 'provider-chat', label: 'Provider Chat', icon: <ShoppingCart /> },
@@ -238,6 +240,8 @@ const CustomerModule: React.FC = () => {
         return <CustomerDashboard />;
       case 'service-search':
         return <ServiceSearch />;
+      case 'service-detail-page':
+        return <ServiceDetailPage />;
       case 'category-browse':
         return <CategoryBrowse />;
       case 'filters':
@@ -260,6 +264,8 @@ const CustomerModule: React.FC = () => {
         return <WalletUsage />;
       case 'payment-options':
         return <PaymentOptions />;
+      case 'payment-summary-screen':
+        return <PaymentSummaryScreen />;
       case 'booking-confirmation':
         return <BookingConfirmation />;
       case 'live-tracking':

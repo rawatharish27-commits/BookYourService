@@ -1,7 +1,7 @@
 // Service & Catalog Management Components
-// These will be implemented as separate components
+export { default as ServiceCategories } from './ServiceCategoryManagement';
 
-export const ServiceCategories = () => null;
+// Placeholder components for remaining service catalog features
 export const ServiceAttributes = () => null;
 export const PricingRules = () => null;
 export const CommissionRules = () => null;

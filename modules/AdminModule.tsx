@@ -121,6 +121,17 @@ import {
   ActivityLogs,
 } from './admin/core-dashboard';
 
+// Import complaints & support components
+import {
+  ComplaintsDisputesPanel,
+} from './admin/complaints-support';
+
+// Import system config components
+import {
+  NotificationTemplates,
+  ReportsDataExport,
+} from './admin/system-config';
+
 const DRAWER_WIDTH = 280;
 
 interface NavigationItem {
@@ -241,6 +252,24 @@ const AdminModule: React.FC = () => {
       ],
     },
     {
+      id: 'complaints-disputes',
+      label: 'Complaints & Disputes',
+      icon: <Support />,
+      children: [
+        { id: 'complaints-disputes-panel', label: 'Complaints & Disputes Panel', icon: <Report /> },
+        { id: 'ticket-inbox', label: 'Ticket Inbox', icon: <Support /> },
+        { id: 'priority-queue', label: 'Priority Queue', icon: <Warning /> },
+        { id: 'escalation', label: 'Escalation', icon: <TrendingUp /> },
+        { id: 'auto-resolution', label: 'Auto Resolution', icon: <Build /> },
+        { id: 'chat-history', label: 'Chat History', icon: <Chat /> },
+        { id: 'refund-recommendations', label: 'Refund Recommendations', icon: <MonetizationOn /> },
+        { id: 'closure-reports', label: 'Closure Reports', icon: <Assignment /> },
+        { id: 'satisfaction-scores', label: 'Satisfaction Scores', icon: <RateReview /> },
+        { id: 'support-analytics', label: 'Support Analytics', icon: <Analytics /> },
+        { id: 'penalty-management', label: 'Penalty Management', icon: <Gavel /> },
+      ],
+    },
+    {
       id: 'payments-finance',
       label: 'Payments & Finance',
       icon: <Payment />,
@@ -293,88 +322,6 @@ const AdminModule: React.FC = () => {
         { id: 'app-version-control', label: 'Version Control', icon: <Build /> },
         { id: 'kill-switch', label: 'Kill Switch', icon: <Security /> },
         { id: 'system-maintenance', label: 'System Maintenance', icon: <Build /> },
-      ],
-    },
-  ];
-        { id: 'provider-verification', label: 'Document Verification', icon: <Business /> },
-        { id: 'provider-performance', label: 'Performance Metrics', icon: <Business /> },
-        { id: 'provider-wallet', label: 'Provider Wallets', icon: <Business /> },
-        { id: 'provider-settlements', label: 'Settlements', icon: <Business /> },
-        { id: 'provider-blacklist', label: 'Blacklist Management', icon: <Business /> },
-      ],
-    },
-    {
-      id: 'service-catalog',
-      label: 'Service & Catalog',
-      icon: <Category />,
-      children: [
-        { id: 'categories', label: 'Categories', icon: <Category /> },
-        { id: 'services', label: 'Services', icon: <Category /> },
-        { id: 'pricing-rules', label: 'Pricing Rules', icon: <Category /> },
-        { id: 'commission-rules', label: 'Commission Rules', icon: <Category /> },
-        { id: 'service-areas', label: 'Service Areas', icon: <Category /> },
-        { id: 'service-moderation', label: 'Content Moderation', icon: <Category /> },
-        { id: 'service-analytics', label: 'Service Analytics', icon: <Category /> },
-        { id: 'category-demand', label: 'Demand Heatmap', icon: <Category /> },
-      ],
-    },
-    {
-      id: 'bookings-operations',
-      label: 'Bookings & Operations',
-      icon: <EventNote />,
-      children: [
-        { id: 'all-bookings', label: 'All Bookings', icon: <EventNote /> },
-        { id: 'live-bookings', label: 'Live Bookings', icon: <EventNote /> },
-        { id: 'booking-disputes', label: 'Disputes', icon: <EventNote /> },
-        { id: 'booking-reassignment', label: 'Reassignment', icon: <EventNote /> },
-        { id: 'emergency-override', label: 'Emergency Override', icon: <EventNote /> },
-        { id: 'sla-monitoring', label: 'SLA Monitoring', icon: <EventNote /> },
-        { id: 'completion-verification', label: 'Completion Verification', icon: <EventNote /> },
-        { id: 'bulk-operations', label: 'Bulk Operations', icon: <EventNote /> },
-      ],
-    },
-    {
-      id: 'payments-finance',
-      label: 'Payments & Finance',
-      icon: <Payment />,
-      children: [
-        { id: 'transactions', label: 'Transactions', icon: <Payment /> },
-        { id: 'failed-payments', label: 'Failed Payments', icon: <Payment /> },
-        { id: 'refunds', label: 'Refunds', icon: <Payment /> },
-        { id: 'provider-settlements', label: 'Provider Settlements', icon: <Payment /> },
-        { id: 'commission-reports', label: 'Commission Reports', icon: <Payment /> },
-        { id: 'gst-reports', label: 'GST Reports', icon: <Payment /> },
-        { id: 'revenue-analytics', label: 'Revenue Analytics', icon: <Payment /> },
-        { id: 'bank-reconciliation', label: 'Bank Reconciliation', icon: <Payment /> },
-      ],
-    },
-    {
-      id: 'complaints-support',
-      label: 'Complaints & Support',
-      icon: <Support />,
-      children: [
-        { id: 'ticket-inbox', label: 'Ticket Inbox', icon: <Support /> },
-        { id: 'priority-queue', label: 'Priority Queue', icon: <Support /> },
-        { id: 'escalation', label: 'Escalation', icon: <Support /> },
-        { id: 'auto-resolution', label: 'Auto Resolution', icon: <Support /> },
-        { id: 'chat-history', label: 'Chat History', icon: <Support /> },
-        { id: 'refund-recommendations', label: 'Refund Recommendations', icon: <Support /> },
-        { id: 'closure-reports', label: 'Closure Reports', icon: <Support /> },
-      ],
-    },
-    {
-      id: 'system-config',
-      label: 'System & Configuration',
-      icon: <Settings />,
-      children: [
-        { id: 'roles-permissions', label: 'Roles & Permissions', icon: <Settings /> },
-        { id: 'feature-toggles', label: 'Feature Toggles', icon: <Settings /> },
-        { id: 'city-config', label: 'City Configuration', icon: <Settings /> },
-        { id: 'pricing-config', label: 'Pricing Config', icon: <Settings /> },
-        { id: 'notification-templates', label: 'Notification Templates', icon: <Settings /> },
-        { id: 'api-management', label: 'API Management', icon: <Settings /> },
-        { id: 'audit-logs', label: 'Audit Logs', icon: <Settings /> },
-        { id: 'backup-config', label: 'Backup Config', icon: <Settings /> },
       ],
     },
   ];
@@ -491,10 +438,12 @@ const AdminModule: React.FC = () => {
 
       // User Management - Providers
       case 'provider-queue':
+        return <ProviderQueue />;
       case 'providers-list':
         return <ProvidersList />;
       case 'provider-profiles':
       case 'provider-verification':
+        return <ProviderVerification />;
       case 'provider-performance':
       case 'provider-wallet':
       case 'provider-settlements':
@@ -506,6 +455,7 @@ const AdminModule: React.FC = () => {
 
       // Service & Catalog
       case 'service-categories':
+        return <ServiceCategories />;
       case 'service-attributes':
       case 'pricing-rules':
       case 'commission-rules':
@@ -546,7 +496,9 @@ const AdminModule: React.FC = () => {
       case 'tax-reports':
       case 'financial-audit':
 
-      // Complaints & Support
+      // Complaints & Disputes
+      case 'complaints-disputes-panel':
+        return <ComplaintsDisputesPanel />;
       case 'ticket-inbox':
       case 'priority-queue':
       case 'escalation':
@@ -564,6 +516,9 @@ const AdminModule: React.FC = () => {
       case 'city-config':
       case 'pricing-config':
       case 'notification-templates':
+        return <NotificationTemplates />;
+      case 'reports-data-export':
+        return <ReportsDataExport />;
       case 'api-management':
       case 'audit-logs-config':
       case 'backup-config':
@@ -698,64 +653,6 @@ const AdminModule: React.FC = () => {
         {renderCurrentPage()}
       </Box>
     </Box>
-  );
-};
-
-export default AdminModule;
-            <div className="text-center">
-              <div className="text-6xl mb-4">🚧</div>
-              <h2 className="text-2xl font-bold mb-2">Page Under Development</h2>
-              <p className="text-slate-600">This feature is coming soon!</p>
-            </div>
-          </div>
-        );
-    }
-  };
-
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar Navigation */}
-      <div className="w-80 bg-[#0A2540] text-white p-8 overflow-y-auto">
-        <div className="mb-12">
-          <h1 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Admin<br/><span className="text-blue-500">Panel</span></h1>
-          <p className="text-[8px] font-black text-blue-300 uppercase tracking-[0.4em] opacity-60 mt-2">Governance Hub</p>
-        </div>
-
-        <nav className="space-y-2">
-          {navigation.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setCurrentPage(item.id)}
-              className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm transition-all ${
-                currentPage === item.id
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <span className="mr-3">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="mt-12 pt-8 border-t border-white/20">
-          <button
-            onClick={() => {
-              localStorage.clear();
-              window.location.reload();
-            }}
-            className="w-full bg-red-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-colors"
-          >
-            🚪 Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1">
-        {renderCurrentPage()}
-      </div>
-    </div>
   );
 };
 

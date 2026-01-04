@@ -1,5 +1,5 @@
 // Customer Dashboard Booking Flow Components
-export { default as ServiceSearch } from './ServiceSearch';
+export { default as ServiceDetailPage } from './ServiceDetailPage';
 export { default as CategoryBrowse } from './CategoryBrowse';
 export { default as Filters } from './Filters';
 export { default as ProviderComparison } from './ProviderComparison';
@@ -10,7 +10,7 @@ export { default as AddressManagement } from './AddressManagement';
 export { default as PriceCalculator } from './PriceCalculator';
 export { default as CouponApply } from './CouponApply';
 export { default as WalletUsage } from './WalletUsage';
-export { default as PaymentOptions } from './PaymentOptions';
+export { default as PaymentSummaryScreen } from './PaymentSummaryScreen';
 export { default as BookingConfirmation } from './BookingConfirmation';
 export { default as LiveTracking } from './LiveTracking';
 export { default as ProviderChat } from './ProviderChat';

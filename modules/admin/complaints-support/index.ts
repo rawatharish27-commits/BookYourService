@@ -1,6 +1,7 @@
 // Complaints & Support Components
-// These will be implemented as separate components
+export { default as ComplaintsDisputesPanel } from './ComplaintsDisputesPanel';
 
+// Placeholder components for remaining support features
 export const TicketInbox = () => null;
 export const PriorityQueue = () => null;
 export const Escalation = () => null;
