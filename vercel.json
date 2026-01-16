@@ -1,6 +1,8 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "buildCommand": "bun run build",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
