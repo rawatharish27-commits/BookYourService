@@ -6,7 +6,7 @@ import React from 'react';
 // Purpose: Primary UI Action Component.
 // Stack: React + Tailwind CSS (Standard HTML).
 // Type: Production-Grade (Accessible, Static Styles).
-// 
+//
 // IMPORTANT:
 // 1. Micro-interaction (Hover Scale).
 // 2. Loading State (Text "Loading...").
@@ -17,18 +17,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
-  leftIcon?: string; // Text/Emoji
-  rightIcon?: string; // Text/Emoji
+  leftIcon?: string;
+  rightIcon?: string;
   className?: string;
   children: React.ReactNode;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, className, children, ...props }, ref
-) => {
-    // Variants (Color + Style)
+  ({ variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, className, children, ...props }, ref) => {
     const baseStyles = "inline-flex items-center justify-center rounded-2xl font-semibold transition-all duration-300 ease-in-out";
-    
+
     const variants = {
       primary: "bg-primary text-white hover:bg-primary/90 hover:scale-105 shadow-lg hover:shadow-primary/50 active:scale-95",
       secondary: "bg-secondary text-white hover:bg-secondary/90 hover:scale-105 shadow-lg hover:shadow-secondary/50 active:scale-95",
@@ -50,7 +48,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <span className="animate-pulse mr-2">⏳</span> {/* Loading Spinner Emoji */}
+          <span className="animate-pulse mr-2">⏳</span>
         ) : (
           <>
             {leftIcon && <span className="mr-2">{leftIcon}</span>}
@@ -60,7 +58,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
       </button>
     );
-  });
-});
+  }
+);
 
 Button.displayName = "Button";

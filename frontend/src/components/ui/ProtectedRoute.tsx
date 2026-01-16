@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { useAuth } from '../../providers/AuthProvider'; // Adjust path as needed
+import { useAuth } from '../../context/AuthContext';
 
 // ============================================
 // AUTH GUARD (PHASE 3 - ENFORCE RBAC)

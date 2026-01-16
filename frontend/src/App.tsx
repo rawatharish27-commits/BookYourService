@@ -20,8 +20,8 @@ import { ProtectedRoute } from './components/ui/ProtectedRoute'; // RBAC Guard
 import { PageTransition } from './components/ui/PageTransition'; // Simplified Wrapper
 
 // Mock Pages (Replace with actual imports)
-import Home from './pages/Home';
-import Login from './pages/auth/Login';
+import { Home } from './pages/Home';
+import { Login } from './pages/auth/Login';
 // import Register from './pages/auth/Register';
 // import CustomerDashboard from './pages/customer/Dashboard';
 // import ProviderDashboard from './pages/provider/Dashboard';

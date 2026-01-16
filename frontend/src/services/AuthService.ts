@@ -1,4 +1,4 @@
-import { LoginPayload, RegisterPayload, OTPPayload, ApiResponse, UserDTO } from 'types';
+import { LoginPayload, RegisterPayload, OTPPayload, ApiResponse, UserDTO } from '../types';
 
 // ============================================
 // AUTH SERVICE (PHASE-2 - FIX CASE SENSITIVITY)
