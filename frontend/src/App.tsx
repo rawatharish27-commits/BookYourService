@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Import all pages
 import LandingPage from './pages/public/Landing';
+import AboutPage from './pages/public/AboutPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
@@ -87,7 +88,7 @@ const App: React.FC = () => {
              PUBLIC ROUTES (NO AUTH REQUIRED)
              ============================================ */}
         <Route path="/" element={<LandingPage />} />
-
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
