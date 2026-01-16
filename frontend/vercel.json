@@ -1,19 +1,6 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/favicon.ico",
-      "destination": "/favicon.png",
-      "statusCode": 301
-    }
-  ],
   "headers": [
     {
       "source": "/favicon.(svg|png)",
@@ -45,6 +32,13 @@
           "value": "public, max-age=86400"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/favicon.ico",
+      "destination": "/favicon.png",
+      "statusCode": 301
     }
   ]
 }
