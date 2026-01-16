@@ -1,0 +1,41 @@
+# Backend Cloud Build Configuration
+# Deploys to: bookyourservice-api (Cloud Run service)
+# Region: europe-west1
+# Registry: Artifact Registry
+
+steps:
+  # 1️⃣ Build backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+      - ./backend
+
+  # 2️⃣ Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+
+  # 3️⃣ Deploy to Cloud Run (UPDATE EXISTING SERVICE)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - bookyourservice-api
+      - --image
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+      - --region
+      - europe-west1
+      - --platform
+      - managed
+      - --memory
+      - 512Mi
+      - --set-env-vars
+      - NODE_ENV=production
+
+images:
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+

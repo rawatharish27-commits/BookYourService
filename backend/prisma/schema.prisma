@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  PROVIDER
+  ADMIN
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPS_MANAGER
+  SUPPORT_AGENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_OTP
+  PROBATION
+  RETRAINING
+  PENDING
+  VERIFIED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ProviderStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  BANNED
+}
+
+enum VerificationStatus {
+  REGISTERED
+  KYC_PENDING
+  BANK_PENDING
+  ADMIN_APPROVED
+  ACTIVE
+  REJECTED
+  REVERIFICATION_REQUIRED
+}
+
+enum BookingStatus {
+  CREATED
+  VERIFIED
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  PAID
+  CLOSED
+  CANCELLED
+}
+
+enum LedgerType {
+  CREDIT
+  DEBIT
+}
+
+enum SLATier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum ComplaintSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PaymentMethod {
+  UPI
+  COD
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum FraudType {
+  PRICE_TAMPERING
+  CANCELLATION_VELOCITY
+  IDENTITY_THEFT
+}
+
+model User {
+  id                String             @id @default(uuid())
+  phone             String             @unique
+  email             String?            @unique
+  passwordHash      String
+  name              String
+  role              UserRole
+  adminRole         AdminRole?
+  status            UserStatus
+  providerStatus    ProviderStatus?
+  verificationStatus VerificationStatus
+  city              String
+  walletBalance     Float              @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // KYC Details
+  aadhaarNumber     String?
+  panNumber         String?
+  bankAccountNumber String?
+  bankIfsc          String?
+  upiId             String?
+  documentsUploaded Boolean            @default(false)
+  
+  // Provider metrics
+  fraudScore        Float              @default(0)
+  abuseScore        Float              @default(0)
+  qualityScore      Float              @default(0)
+  jobCount          Int                @default(0)
+  isProbation       Boolean            @default(false)
+  deviceId          String?
+  lastLogin         DateTime?
+  rank              Int?
+  refreshToken      String?
+  
+  // Relations
+  providerBookings  Booking[]          @relation("ProviderBookings")
+  customerBookings  Booking[]          @relation("CustomerBookings")
+  walletLedger      WalletLedger[]
+  complaints        Complaint[]
+  fraudSignals      FraudSignal[]
+  penalties         Penalty[]
+  auditLogs         AuditLog[]
+  
+  @@map("users")
+}
+
+model Problem {
+  id            String   @id @default(uuid())
+  ontologyId    String   @unique
+  category      String
+  subCategory   String
+  title         String
+  basePrice     Float
+  maxPrice      Float
+  addons        Json     @default("[]")
+  description   String
+  providerRole  String
+  severity      Int
+  slaTier       SLATier
+  isEnabled     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  bookings      Booking[]
+  
+  @@map("problems")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  icon        String
+  isEnabled   Boolean  @default(true)
+  providerType String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("categories")
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  userId          String
+  providerId      String?
+  problemId       String
+  problemTitle    String
+  status          BookingStatus
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  slaDeadline     DateTime
+  isSLABreached   Boolean       @default(false)
+  total           Float?
+  basePrice       Float
+  maxPrice        Float
+  addons          Json          @default("[]")
+  city            String
+  category        String?
+  slaTier         SLATier
+  assignedAt      DateTime?
+  cancelProbability Float?
+  paymentStatus   PaymentStatus?
+  paymentMethod   PaymentMethod?
+  rating          Int?
+  review          String?
+  complaintId     String?
+  completedAt     DateTime?
+  cancelReason    String?
+  
+  // Relations
+  customer        User          @relation("CustomerBookings", fields: [userId], references: [id])
+  provider        User?         @relation("ProviderBookings", fields: [providerId], references: [id])
+  problem         Problem       @relation(fields: [problemId], references: [id])
+  payment         Payment?
+  complaint       Complaint?
+  walletLedger    WalletLedger[]
+  
+  @@map("bookings")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  bookingId       String        @unique
+  amount          Float
+  currency        String        @default("INR")
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  
+  @@map("payments")
+}
+
+model WalletLedger {
+  id          String      @id @default(uuid())
+  userId      String
+  bookingId   String?
+  amount      Float
+  type        LedgerType
+  category    String
+  description String?
+  createdAt   DateTime    @default(now())
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  booking     Booking?    @relation(fields: [bookingId], references: [id])
+  
+  @@map("wallet_ledger")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  entity     String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  user       User     @relation(fields: [actorId], references: [id])
+  
+  @@map("audit_logs")
+}
+
+model Complaint {
+  id          String              @id @default(uuid())
+  bookingId   String              @unique
+  userId      String
+  category    String
+  description String
+  status      String              @default("OPEN")
+  severity    ComplaintSeverity
+  resolution  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  // Relations
+  booking     Booking             @relation(fields: [bookingId], references: [id])
+  user        User                @relation(fields: [userId], references: [id])
+  
+  @@map("complaints")
+}
+
+model FraudSignal {
+  id          String     @id @default(uuid())
+  userId      String
+  type        FraudType
+  score       Float
+  description String
+  metadata    Json?
+  isDismissed Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  
+  // Relations
+  user        User       @relation(fields: [userId], references: [id])
+  
+  @@map("fraud_signals")
+}
+
+model Penalty {
+  id          String   @id @default(uuid())
+  userId      String
+  bookingId   String?
+  amount      Float
+  reason      String
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  
+  @@map("penalties")
+}
+
+model SystemConfig {
+  id                  String   @id @default(uuid())
+  aiKillSwitch        Boolean  @default(false)
+  autoMatchingEnabled Boolean  @default(true)
+  globalPlatformFee   Float    @default(10)
+  minProviderBalance  Float    @default(100)
+  maxBookingRadius    Float    @default(10)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@map("system_config")
+}
+

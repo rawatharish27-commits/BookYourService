@@ -1,0 +1,35 @@
+steps:
+  # Build backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+      - ./backend
+
+  # Push backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+
+  # Deploy backend
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - bookyourservice-api
+      - --image
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-api
+      - --region
+      - europe-west1
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - "8080"
+      - --memory
+      - 512Mi
+      - --set-secrets
+      - DATABASE_URL=DATABASE_URL:latest

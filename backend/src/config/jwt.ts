@@ -1,0 +1,13 @@
+export interface JwtPayload {
+  id: string;
+  role: string;
+  phone?: string;
+}
+
+export const JWT_CONFIG = {
+  secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+  expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+  refreshSecret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-change-in-production',
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+};
+

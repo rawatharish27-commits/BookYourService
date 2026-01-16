@@ -1,0 +1,60 @@
+# Frontend Cloud Build Configuration
+# Deploys to: bookyourservice (Cloud Run service)
+# Region: europe-west1
+# Registry: Artifact Registry
+
+steps:
+  # 0️⃣ Pull latest image for Layer Caching (Speeds up build)
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:latest || exit 0
+
+  # 1️⃣ Build frontend image (With Caching, Versioning & Dynamic Env)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - --build-arg
+      - VITE_API_BASE_URL=${_VITE_API_BASE_URL}
+      - --cache-from
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:latest
+      - -t
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:latest
+      - -t
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:$SHORT_SHA
+      - ./frontend
+
+  # 2️⃣ Push images (Latest + Versioned)
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker push europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:latest
+        docker push europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:$SHORT_SHA
+
+  # 3️⃣ Deploy to Cloud Run (Specific Version for Rollback Safety)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - bookyourservice
+      - --image
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:$SHORT_SHA
+      - --region
+      - europe-west1
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --memory
+      - 256Mi
+
+substitutions:
+  _VITE_API_BASE_URL: https://bookyourservice-api-48728079466.europe-west1.run.app/api
+
+images:
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/bookyourservice-repo/bookyourservice-frontend:$SHORT_SHA
