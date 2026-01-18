@@ -2,29 +2,22 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Refactored Imports
+import { useAuth } from './hooks/useAuth';
+import { routeConfig, RouteConfig } from './routes/routeConfig';
+
 // ============================================
-// MAIN APP COMPONENT - ADVANCED SPA ROUTING
+// MAIN APP COMPONENT - REFACTORED FOR CENTRALIZED ROUTING
 // ============================================
-// Purpose: Define all routes with page transitions
+// Purpose: Dynamically render routes from a central config file.
 // Stack: React 18 + React Router v6 + Framer Motion
-// Type: Production-Grade with Advanced UI
-
-// Import all pages
-import LandingPage from './pages/public/Landing';
-import AboutPage from './pages/public/AboutPage';
-import LoginPage from './pages/auth/LoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
-import CustomerDashboard from './pages/customer/CustomerDashboard';
-import ProviderDashboard from './pages/provider/ProviderDashboard';
-import AdminDashboard from './pages/admin/AdminDashboard';
+// Type: Production-Grade with Advanced UI & Centralized Logic
 
 // ============================================
-// PAGE TRANSITION WRAPPER
+// PAGE TRANSITION WRAPPER (No changes)
 // ============================================
-
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -41,35 +34,24 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 // ============================================
-// PROTECTED ROUTE COMPONENT
+// PROTECTED ROUTE COMPONENT (Refactored to use useAuth hook)
 // ============================================
-
 interface ProtectedRouteProps {
   children: React.ReactNode;
   role?: 'customer' | 'provider' | 'admin';
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, role }) => {
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('role');
+  const { isAuthenticated, role: userRole } = useAuth();
   const location = useLocation();
 
-  // Check if user is authenticated
-  if (!token) {
-    return (
-      <Navigate
-        to="/login"
-        state={{ from: location.pathname }}
-        replace
-      />
-    );
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
   if (role && userRole !== role) {
-    const dashboardPath = role === 'customer' ? '/c/dashboard' :
-                         role === 'provider' ? '/p/dashboard' :
-                         '/a/dashboard';
+    // Redirect to the correct dashboard if roles mismatch
+    const dashboardPath = `/${userRole?.charAt(0)}/dashboard`;
     return <Navigate to={dashboardPath} replace />;
   }
 
@@ -77,67 +59,33 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, role }) => {
 };
 
 // ============================================
+// ROUTE RENDERING LOGIC
+// ============================================
+const renderRoutes = (routes: RouteConfig[]) => {
+  return routes.map(({ path, component: Component, isPublic, role, children }) => {
+    const element = <Component />;
+    
+    if (!isPublic) {
+      return (
+        <Route key={path} path={path} element={<ProtectedRoute role={role}>{element}</ProtectedRoute>}>
+          {children && renderRoutes(children)}
+        </Route>
+      );
+    }
+    
+    return <Route key={path} path={path} element={<PageTransition>{element}</PageTransition>} />;
+  });
+};
+
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
-
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ============================================
-             PUBLIC ROUTES (NO AUTH REQUIRED)
-             ============================================ */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-
-        {/* ============================================
-             CUSTOMER ROUTES (CUSTOMER ROLE)
-             ============================================ */}
-        <Route path="/c/*" element={
-          <ProtectedRoute role="customer">
-            <Routes>
-              <Route path="/c/dashboard" element={<CustomerDashboard />} />
-              <Route path="/c/bookings" element={<CustomerDashboard />} />
-              <Route path="/c/profile" element={<CustomerDashboard />} />
-              <Route path="/c/wallet" element={<CustomerDashboard />} />
-              <Route path="/c/support" element={<CustomerDashboard />} />
-              <Route path="/c/*" element={<CustomerDashboard />} />
-            </Routes>
-          </ProtectedRoute>
-        } />
-
-        {/* ============================================
-             PROVIDER ROUTES (PROVIDER ROLE)
-             ============================================ */}
-        <Route path="/p/*" element={
-          <ProtectedRoute role="provider">
-            <Routes>
-              <Route path="/p/dashboard" element={<ProviderDashboard />} />
-              <Route path="/p/bookings" element={<ProviderDashboard />} />
-              <Route path="/p/profile" element={<ProviderDashboard />} />
-              <Route path="/p/earnings" element={<ProviderDashboard />} />
-              <Route path="/p/*" element={<ProviderDashboard />} />
-            </Routes>
-          </ProtectedRoute>
-        } />
-
-        {/* ============================================
-             ADMIN ROUTES (ADMIN ROLE)
-             ============================================ */}
-        <Route path="/a/*" element={
-          <ProtectedRoute role="admin">
-            <Routes>
-              <Route path="/a/dashboard" element={<AdminDashboard />} />
-              <Route path="/a/users" element={<AdminDashboard />} />
-              <Route path="/a/providers" element={<AdminDashboard />} />
-              <Route path="/a/bookings" element={<AdminDashboard />} />
-              <Route path="/a/settings" element={<AdminDashboard />} />
-              <Route path="/a/*" element={<AdminDashboard />} />
-            </Routes>
-          </ProtectedRoute>
-        } />
+        {renderRoutes(routeConfig)}
 
         {/* ============================================
              FALLBACK ROUTE (404)
