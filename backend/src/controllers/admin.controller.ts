@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient, UserStatus } from '@prisma/client';
-import { AppError, ValidationError, NotFoundError, ForbiddenError } from '../utils/errors';
+import { AppError, ValidationError, NotFoundError, ForbiddenError } from '../middleware/error.middleware';
 import logger from '../utils/logger';
 
 const prisma = new PrismaClient();
@@ -113,9 +113,7 @@ export const freezeUser = async (req: Request, res: Response) => {
     const frozenUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        status: UserStatus.FROZEN,
-        freezeReason: reason,
-        frozenAt: new Date(),
+        status: UserStatus.SUSPENDED
       },
     });
 
@@ -172,8 +170,6 @@ export const unfreezeUser = async (req: Request, res: Response) => {
       where: { id: userId },
       data: {
         status: UserStatus.ACTIVE,
-        freezeReason: null,
-        frozenAt: null,
         updatedAt: new Date(),
       },
     });
@@ -222,79 +218,85 @@ export const triggerRefund = async (req: Request, res: Response) => {
     // 2. Check Booking Exists
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { payment: true, wallet: true }, // Include Relations
+      include: { customer: true }, // Include customer to get user ID for wallet
     });
 
     if (!booking) {
       throw new NotFoundError('Booking not found');
     }
 
-    // 3. Validate Booking Status (Can Refund PAID, COMPLETED bookings)
+    // 3. Validate Booking Status
     if (booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED') {
       throw new ValidationError('Can only refund COMPLETED or CANCELLED bookings');
+    }
+
+    const refundAmount = amount || booking.total || 0;
+    if (refundAmount <= 0) {
+        throw new ValidationError('Refund amount must be positive.');
     }
 
     // 4. Start Transaction (Payment + Wallet + Booking Update)
     await prisma.$transaction(async (tx) => {
       // A. Create Refund Record (Payment Table)
-      const refund = await tx.payment.create({
+      await tx.payment.create({
         data: {
           bookingId: bookingId,
-          amount: amount || booking.price, // Full Refund if amount not specified
-          gateway: 'ADMIN_MANUAL', // Not via Webhook
-          status: 'PROCESSING', // Assume processing for now
+          amount: refundAmount,
+          status: PaymentStatus.PENDING, // Corrected status
           currency: 'INR',
+          paymentMethod: 'UPI', // Assuming a default, this could be more dynamic
         },
       });
 
-      // B. Credit Wallet (If Customer has Wallet)
-      if (booking.wallet) {
-        await tx.wallet.update({
-          where: { userId: booking.customerId },
+      // B. Credit User's Wallet Balance
+      await tx.user.update({
+          where: { id: booking.userId },
           data: {
-            balance: {
-              increment: amount || booking.price, // Credit Wallet
+            walletBalance: {
+              increment: refundAmount,
             },
             updatedAt: new Date(),
           },
-        });
+      });
 
-        // C. Create Ledger Entry (Credit)
-        await tx.ledger.create({
-          data: {
-            walletId: booking.wallet.id,
-            amount: amount || booking.price,
+      // C. Create WalletLedger Entry (Credit)
+      await tx.walletLedger.create({
+        data: {
+            userId: booking.userId,
+            bookingId: booking.id,
+            amount: refundAmount,
             type: 'CREDIT',
-            source: 'REFUND',
+            category: 'REFUND',
             description: `Manual Refund for Booking ${bookingId}. Reason: ${reason}`,
             createdAt: new Date(),
-          },
-        });
-      }
-
-      // D. Update Booking Status (REFUNDED)
-      await tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          status: 'REFUNDED',
-          refundedAt: new Date(),
-          updatedAt: new Date(),
         },
       });
+
+      // D. Update Booking Status if it's not already cancelled
+      if (booking.status !== 'CANCELLED') {
+        await tx.booking.update({
+            where: { id: bookingId },
+            data: {
+              status: BookingStatus.CANCELLED, // Corrected status
+              cancelReason: `Refund processed by admin: ${reason}`,
+              updatedAt: new Date(),
+            },
+        });
+      }
     });
 
     // 5. Log Action (Audit Trail)
     logger.warn('[AdminController] Manual Refund Triggered', {
-      adminId: req.user.id,
+      adminId: req.user?.id,
       bookingId,
-      amount: amount || booking.price,
+      amount: refundAmount,
       reason,
     });
 
     res.status(200).json({
       success: true,
       message: 'Refund processed successfully',
-      data: { bookingId, status: 'REFUNDED' },
+      data: { bookingId, status: 'CANCELLED' },
     });
   } catch (error) {
     logger.error('[AdminController] Manual Refund Failed', error);
@@ -324,7 +326,7 @@ export const getAdminStats = async (req: Request, res: Response) => {
 
     // 2. Filter Active/Inactive Stats
     const activeUsers = await prisma.user.count({ where: { status: UserStatus.ACTIVE } });
-    const frozenUsers = await prisma.user.count({ where: { status: UserStatus.FROZEN } });
+    const frozenUsers = await prisma.user.count({ where: { status: UserStatus.SUSPENDED } });
     const activeBookings = await prisma.booking.count({ where: { status: 'IN_PROGRESS' } });
 
     // 3. Calculate Revenue (Safely)

@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
-import { asyncHandler, BadRequestError, UnauthorizedError, NotFoundError, InternalServerError, AppError } from '../../middleware/error.middleware';
-import { logger } from '../../utils/logger.util';
+import { asyncHandler, BadRequestError, UnauthorizedError, NotFoundError, InternalServerError, AppError } from '../middleware/error.middleware';
+import { logger } from '../utils/logger';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { email, phone, password, role, fullName } = req.body;
