@@ -1,56 +1,31 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
-import dotenv from "dotenv";
-import { PrismaClient } from "@prisma/client";
+import app from './src/app';
+import 'dotenv/config';
 
-dotenv.config();
-
-const app = express();
-const prisma = new PrismaClient();
+// ============================================
+// SERVER ENTRY POINT (SENIOR DEV LEVEL)
+// ============================================
+// Purpose: Starts the HTTP server.
+//
+// IMPORTANT:
+// 1. This file IMPORTS the configured `app` from `src/app.ts`.
+// 2. It reads the PORT from environment variables.
+// 3. It starts the server and listens for incoming requests.
+// 4. It does NOT contain any routes or middleware configuration.
+// ============================================
 
 const PORT = process.env.PORT || 4000;
-const FRONTEND_URL = process.env.CORS_ORIGIN || "https://bookyourservice.co.in";
 
-// Middlewares
-app.use(helmet());
-app.use(morgan("dev"));
-app.use(express.json());
-app.use(
-  cors({
-    origin: FRONTEND_URL,
-    credentials: true,
-  })
-);
-
-// Health Check (Vercel + UptimeRobot)
-app.get("/health", async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({
-      status: "ok",
-      db: "connected",
-      time: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      db: "disconnected",
-    });
-  }
+const server = app.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`✅ API available at http://localhost:${PORT}`);
+  console.log('Press Ctrl+C to stop');
 });
 
-// Root test
-app.get("/", (req, res) => {
-  res.json({
-    name: "BookYourService API",
-    status: "running",
-    env: process.env.NODE_ENV,
+// Graceful Shutdown
+process.on('SIGINT', () => {
+  console.log('\n✅ Received SIGINT. Shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed. Exiting process.');
+    process.exit(0);
   });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT}`);
 });
