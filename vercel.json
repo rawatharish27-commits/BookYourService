@@ -10,7 +10,7 @@
       }
     },
     {
-      "src": "backend/src/server.ts",
+      "src": "backend/server.ts",
       "use": "@vercel/node"
     }
   ],
