@@ -10,7 +10,7 @@
       }
     },
     {
-      "src": "backend/server.ts",
+      "src": "backend/package.json",
       "use": "@vercel/node"
     }
   ],
@@ -18,7 +18,7 @@
   "routes": [
     {
       "src": "^/api/(.*)",
-      "dest": "backend/src/server.ts"
+      "dest": "backend/dist/server.js"
     },
     {
       "src": "^/(.*)",

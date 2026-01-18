@@ -10,6 +10,7 @@ import path from 'path';
 // Type: Production-Grade
 
 export default defineConfig({
+  base: "/",
   plugins: [react()],
 
   // Resolve paths
