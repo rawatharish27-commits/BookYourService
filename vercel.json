@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "buildCommand": "bun run build",
+  "buildCommand": "npm run build",
   "framework": null,
   "rewrites": [
     {
