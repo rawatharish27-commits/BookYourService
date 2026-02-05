@@ -1,0 +1,41 @@
+
+export const adminPermissions: Record<string, string[]> = {
+  ADMIN_L1: [
+    "VIEW_USERS",
+    "VIEW_SERVICES",
+    "VIEW_BOOKINGS"
+  ],
+
+  ADMIN_L2: [
+    "VIEW_USERS",
+    "VIEW_SERVICES",
+    "VIEW_BOOKINGS",
+    "BLOCK_USER",
+    "APPROVE_SERVICE"
+  ],
+
+  ADMIN_L3: [
+    "VIEW_USERS",
+    "VIEW_SERVICES",
+    "VIEW_BOOKINGS",
+    "BLOCK_USER",
+    "APPROVE_SERVICE",
+    "BOOKING_OVERRIDE",
+    "ADMIN_CANCEL_BOOKING",
+    "RESOLVE_DISPUTE"
+  ],
+
+  ADMIN_L4: [
+    "VIEW_USERS",
+    "VIEW_SERVICES",
+    "VIEW_BOOKINGS",
+    "BLOCK_USER",
+    "APPROVE_SERVICE",
+    "BOOKING_OVERRIDE",
+    "ADMIN_CANCEL_BOOKING",
+    "REFUND_TRIGGER",
+    "SYSTEM_OVERRIDE",
+    "RESOLVE_DISPUTE",
+    "MANAGE_CONFIG"
+  ]
+};
