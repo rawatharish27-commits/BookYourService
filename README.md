@@ -18,10 +18,16 @@
 - **Standardized Catalog:** Template-based service creation to ensure quality.
 - **Slot Locking:** Prevents double-booking concurrency issues.
 
-### 💰 Financial Integrity
-- **Escrow-like Logic:** Funds held until service completion.
-- **Ledger System:** Immutable record of Credits, Debits, and Commissions.
-- **Webhook-First Payments:** Zero-trust frontend payment verification.
+---
+
+## 📜 Documentation Hub
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md):** High-level system design and scaling strategies.
+- **[ROADMAP.md](./ROADMAP.md):** The 12-month strategic vision.
+- **[SYSTEM_REQUIREMENTS.md](./SYSTEM_REQUIREMENTS.md):** The core "Contract" of rules.
+- **[EXECUTION_ROADMAP.md](./EXECUTION_ROADMAP.md):** Day-by-day plan for Go-Live.
+- **[VERIFICATION_CHECKLIST.md](./VERIFICATION_CHECKLIST.md):** QA Sign-off sheet.
+- **[DEPLOYMENT.md](./DEPLOYMENT.md):** Server setup guide.
 
 ---
 
@@ -37,65 +43,11 @@
 docker-compose up --build
 ```
 
-### 3. Access
-- **Frontend:** http://localhost:80
-- **Backend API:** http://localhost:4000
-- **Database:** Port 5432
-
-### 4. Seed Data
+### 3. Seed Data
 ```bash
 # Run inside backend container or locally
 npm run seed:prod
 ```
-
----
-
-## 📂 Project Structure
-
-```
-/
-├── backend/             # Node.js Express API
-│   ├── src/
-│   │   ├── config/      # Env & DB Config
-│   │   ├── controllers/ # Business Logic
-│   │   ├── middlewares/ # Auth, Fraud, Validation
-│   │   └── ...
-│   └── Dockerfile
-├── src/                 # React Frontend
-│   ├── pages/           # Client, Provider, Admin Pages
-│   ├── context/         # Auth & Toast Context
-│   └── ...
-├── nginx/               # Reverse Proxy Config
-├── docker-compose.yml   # Orchestration
-└── ...
-```
-
----
-
-## 📜 Documentation
-
-- **[SYSTEM_REQUIREMENTS.md](./SYSTEM_REQUIREMENTS.md):** The core "Contract" of rules.
-- **[EXECUTION_ROADMAP.md](./EXECUTION_ROADMAP.md):** Day-by-day plan for Go-Live.
-- **[VERIFICATION_CHECKLIST.md](./VERIFICATION_CHECKLIST.md):** QA Sign-off sheet.
-- **[DEPLOYMENT.md](./DEPLOYMENT.md):** Server setup guide.
-
----
-
-## 🧪 Testing
-
-```bash
-cd backend
-npm test
-```
-
----
-
-## 📦 Production Build
-
-The system is fully Dockerized.
-1. Set `NODE_ENV=production` in `.env`
-2. Update `DATABASE_URL` to a managed instance (AWS RDS / Supabase).
-3. Deploy via `docker-compose -f docker-compose.yml up -d`.
 
 ---
 
