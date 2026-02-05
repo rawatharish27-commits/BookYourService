@@ -27,12 +27,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log the error to an error reporting service
     console.error('Uncaught error:', error, errorInfo);
   }
 
@@ -43,7 +41,6 @@ export class ErrorBoundary extends Component<Props, State> {
     const { children } = this.props;
 
     if (hasError) {
-      // Custom fallback UI
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
           <div className="bg-white rounded-[2.5rem] p-12 shadow-2xl border border-gray-100 max-w-lg text-center">
@@ -65,7 +62,6 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // Standard fix for React Error #525: explicitly return null if children is undefined/null
     return children ?? null;
   }
 }
