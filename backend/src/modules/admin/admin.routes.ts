@@ -7,14 +7,17 @@ import { requireAdminPermission } from "../../middlewares/adminPermission.middle
 
 const router = Router();
 
-// 1. GLOBAL GUARD: Must be authenticated AND have 'ADMIN' role
+// 1. GLOBAL GUARD
 router.use(authenticate, allowRoles("ADMIN"));
 
-// 2. DASHBOARD & READ-ONLY (L1 Permissions)
+// 2. DASHBOARD & READ-ONLY
 router.get("/dashboard", requireAdminPermission("VIEW_BOOKINGS"), adminController.getDashboardStats);
 router.get("/metrics", requireAdminPermission("VIEW_BOOKINGS"), adminController.getSystemMetrics);
 router.get("/providers-wallet", requireAdminPermission("VIEW_USERS"), adminController.getProvidersWithWallet);
 router.get("/config", requireAdminPermission("MANAGE_CONFIG"), adminController.getSystemConfig);
+// Added Audit Trails Route
+router.get("/audit-logs", requireAdminPermission("MANAGE_CONFIG"), adminController.getAuditLogs);
+// Fix: Map /disputes route to listDisputes instead of getSystemConfig placeholder
 router.get("/disputes", requireAdminPermission("RESOLVE_DISPUTE"), adminController.listDisputes);
 
 // 3. PROVIDER MANAGEMENT
@@ -26,25 +29,23 @@ router.post(
 
 router.post(
   "/provider/verify",
-  requireAdminPermission("APPROVE_SERVICE"), // L2+
+  requireAdminPermission("APPROVE_SERVICE"),
   adminController.verifyProvider
 );
 
 router.post(
   "/provider/payout",
-  requireAdminPermission("REFUND_TRIGGER"), // L4 (High Risk)
+  requireAdminPermission("REFUND_TRIGGER"),
   adminController.payoutProvider
 );
 
-// 4. BOOKING MANAGEMENT (Overrides)
-// Fix: changed parameter to :id and method to forceCancel to match adminController.forceCancel
+// 4. BOOKING MANAGEMENT
 router.post(
   "/bookings/:id/cancel",
   requireAdminPermission("ADMIN_CANCEL_BOOKING"),
   adminController.forceCancel
 );
 
-// Fix: changed parameter to :id and method to forceRefund to match adminController.forceRefund
 router.post(
   "/bookings/:id/refund",
   requireAdminPermission("REFUND_TRIGGER"),

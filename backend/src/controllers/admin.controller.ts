@@ -2,121 +2,41 @@
 import { Response, NextFunction } from "express";
 import { db } from "../config/db";
 import { AuthRequest } from "../middlewares/auth.middleware";
+import { AdminLogModel } from "../models/adminLog.model";
+import { adminService } from "../modules/admin/admin.service";
+import { disputeService } from "../modules/admin/dispute.service";
 
-// ... (Existing Imports) ...
-
-// --- GOVERNANCE: SYSTEM CONFIGS ---
-
-export const getSystemConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminController = {
+  // GOD MODE OVERRIDES
+  async forceCancel(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-        const result = await db.query(`SELECT * FROM system_configs ORDER BY key`);
-        (res as any).json(result.rows);
+        const { id } = (req as any).params;
+        const { reason } = (req as any).body;
+        const result = await adminService.forceCancelBooking(id, req.user!.id, reason);
+        (res as any).json(result);
     } catch (e) { next(e); }
-};
+  },
 
-export const updateSystemConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async forceRefund(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-        const adminId = req.user!.id;
-        const { key, value } = (req as any).body;
-        
-        await db.query(
-            `UPDATE system_configs SET value=$1, updated_at=NOW(), updated_by=$2 WHERE key=$3`,
-            [value, adminId, key]
-        );
-        
-        await db.query(
-            `INSERT INTO admin_logs (admin_id, action, target_id, metadata) VALUES ($1, 'UPDATE_CONFIG', NULL, $2)`,
-            [adminId, JSON.stringify({ key, value })]
-        );
-
-        (res as any).json({ message: "Config updated" });
+        const { id } = (req as any).params;
+        const { reason } = (req as any).body;
+        const result = await adminService.forceRefundPayment(id, req.user!.id, reason);
+        (res as any).json(result);
     } catch (e) { next(e); }
-};
+  },
 
-// --- GOVERNANCE: DISPUTES ---
-
-export const getDisputes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  // PROVIDER ACTIONS
+  async suspendProvider(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-        const result = await db.query(
-            `SELECT d.*, u.name as initiator_name, b.total_amount 
-             FROM disputes d
-             JOIN users u ON u.id = d.initiator_id
-             JOIN bookings b ON b.id = d.booking_id
-             ORDER BY d.created_at DESC`
-        );
-        (res as any).json(result.rows);
+      const { providerId } = (req as any).params;
+      const { reason } = (req as any).body;
+      await adminService.suspendProvider(providerId, reason, req.user!.id);
+      (res as any).json({ success: true, message: "Provider suspended" });
     } catch (e) { next(e); }
-};
+  },
 
-export const resolveDispute = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const client = await db.connect();
-    try {
-        const adminId = req.user!.id;
-        const { disputeId, outcome, notes } = (req as any).body; 
-        // Outcome: 'RESOLVED_CLIENT' (Refund), 'RESOLVED_PROVIDER' (Payout)
-
-        await client.query("BEGIN");
-
-        const disputeRes = await client.query(`SELECT booking_id, status FROM disputes WHERE id=$1 FOR UPDATE`, [disputeId]);
-        if (disputeRes.rowCount === 0) throw { statusCode: 404, message: "Dispute not found" };
-        const dispute = disputeRes.rows[0];
-
-        if (dispute.status !== 'OPEN' && dispute.status !== 'UNDER_REVIEW') {
-            throw { statusCode: 400, message: "Dispute already resolved" };
-        }
-
-        const bookingId = dispute.booking_id;
-        const bookingRes = await client.query(`SELECT total_amount, provider_id, client_id FROM bookings WHERE id=$1`, [bookingId]);
-        const booking = bookingRes.rows[0];
-
-        // LOGIC BASED ON OUTCOME
-        if (outcome === 'RESOLVED_CLIENT') {
-            // Refund Client
-            await client.query(
-                `INSERT INTO escrow_ledger (booking_id, amount, type, description)
-                 VALUES ($1, $2, 'REFUND', 'Dispute Resolved - Refund to Client')`,
-                [bookingId, -Number(booking.total_amount)]
-            );
-            await client.query(`UPDATE bookings SET status='REFUNDED' WHERE id=$1`, [bookingId]);
-            // (Real gateway refund trigger would be here)
-        } else {
-            // Pay Provider
-            await client.query(
-                `INSERT INTO escrow_ledger (booking_id, amount, type, description)
-                 VALUES ($1, $2, 'RELEASE', 'Dispute Resolved - Released to Provider')`,
-                [bookingId, -Number(booking.total_amount)]
-            );
-            await client.query(`UPDATE provider_wallet SET balance = balance + $1 WHERE provider_id=$2`, [Number(booking.provider_amount || 0), booking.provider_id]);
-            await client.query(`UPDATE bookings SET status='SETTLED' WHERE id=$1`, [bookingId]);
-        }
-
-        // Close Dispute
-        await client.query(
-            `UPDATE disputes SET status=$1, admin_notes=$2, resolved_by=$3, resolved_at=NOW() WHERE id=$4`,
-            [outcome, notes, adminId, disputeId]
-        );
-
-        // Audit
-        await client.query(
-            `INSERT INTO admin_logs (admin_id, action, target_id, metadata) 
-             VALUES ($1, 'RESOLVE_DISPUTE', $2, $3)`,
-            [adminId, disputeId, JSON.stringify({ outcome, notes })]
-        );
-
-        await client.query("COMMIT");
-        (res as any).json({ message: "Dispute resolved successfully" });
-
-    } catch (e) {
-        await client.query("ROLLBACK");
-        next(e);
-    } finally {
-        client.release();
-    }
-};
-
-// --- EXISTING METHODS (ENHANCED) ---
-
-export const verifyProvider = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async verifyProvider(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const { providerId, status } = (req as any).body; 
         const adminId = req.user!.id;
@@ -125,103 +45,85 @@ export const verifyProvider = async (req: AuthRequest, res: Response, next: Next
             return (res as any).status(400).json({ message: "Invalid status" });
         }
 
-        const client = await db.connect();
-        try {
-            await client.query("BEGIN");
+        await db.transaction(async (client) => {
             await client.query(`UPDATE providers SET approval_status=$1 WHERE id=$2`, [status, providerId]);
             await client.query(
                 `UPDATE users SET verification_status=$1 WHERE id=(SELECT user_id FROM providers WHERE id=$2)`,
                 [status, providerId]
             );
-            await client.query(
-                `INSERT INTO provider_status_history (provider_id, new_status, changed_by, reason) 
-                 VALUES ($1, $2, $3, 'Admin Manual Review')`,
-                [providerId, status, adminId]
-            );
-            await client.query("COMMIT");
-            (res as any).json({ message: `Provider ${status}` });
-        } catch(e) {
-            await client.query("ROLLBACK");
-            throw e;
-        } finally {
-            client.release();
-        }
-    } catch (e) { next(e); }
-};
+            
+            // 🔒 PHASE 7 Audit
+            await AdminLogModel.log(adminId, 'VERIFY_PROVIDER', 'USER', providerId, { status }, client);
+        });
 
-export const payoutProvider = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const client = await db.connect();
+        (res as any).json({ message: `Provider ${status}` });
+    } catch (e) { next(e); }
+  },
+
+  async payoutProvider(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const adminId = req.user!.id;
         const { providerId, amount } = (req as any).body;
 
-        if (!amount || amount <= 0) return (res as any).status(400).json({ message: "Invalid payout amount" });
+        const result = await db.transaction(async (client) => {
+            const walletRes = await client.query(`SELECT balance FROM provider_wallet WHERE provider_id=$1 FOR UPDATE`, [providerId]);
+            if (walletRes.rowCount === 0) throw { status: 404, message: "Wallet not found" };
 
-        await client.query("BEGIN");
+            if (Number(walletRes.rows[0].balance) < amount) throw { status: 400, message: "Insufficient balance" };
 
-        // 1. Check Balance
-        const walletRes = await client.query(
-            `SELECT balance FROM provider_wallet WHERE provider_id=$1 FOR UPDATE`,
-            [providerId]
-        );
+            const payoutRes = await client.query(`INSERT INTO payouts (provider_id, amount, status) VALUES ($1, $2, 'PROCESSED') RETURNING id`, [providerId, amount]);
+            await client.query(`UPDATE provider_wallet SET balance = balance - $1 WHERE provider_id=$2`, [amount, providerId]);
+            
+            // 🔒 PHASE 7 Audit
+            await AdminLogModel.log(adminId, 'PROCESS_PAYOUT', 'PAYMENT', payoutRes.rows[0].id, { amount, providerId }, client);
 
-        if (walletRes.rowCount === 0) {
-            await client.query("ROLLBACK");
-            return (res as any).status(404).json({ message: "Provider wallet not found" });
-        }
+            return { payoutId: payoutRes.rows[0].id };
+        });
 
-        const currentBalance = Number(walletRes.rows[0].balance);
-        if (currentBalance < amount) {
-            await client.query("ROLLBACK");
-            return (res as any).status(400).json({ message: "Insufficient balance" });
-        }
+        (res as any).json({ success: true, ...result });
+    } catch (error) { next(error); }
+  },
 
-        // 2. Create Payout Record
-        const payoutRes = await client.query(
-            `INSERT INTO payouts (provider_id, amount, status) VALUES ($1, $2, 'PROCESSED') RETURNING id`,
-            [providerId, amount]
-        );
-        const payoutId = payoutRes.rows[0].id;
+  // Fix: Added missing listDisputes method
+  async listDisputes(req: AuthRequest, res: Response, next: NextFunction) {
+      try {
+          const disputes = await disputeService.list();
+          (res as any).json(disputes);
+      } catch (e) { next(e); }
+  },
 
-        // 3. Debit Wallet
-        await client.query(
-            `UPDATE provider_wallet SET balance = balance - $1 WHERE provider_id=$2`,
-            [amount, providerId]
-        );
+  async resolveDispute(req: AuthRequest, res: Response, next: NextFunction) {
+      try {
+          const { resolution, outcome, disputeId } = (req as any).body;
+          const adminId = req.user!.id;
+          await disputeService.resolve(disputeId, resolution, outcome, adminId);
+          
+          // Audit happens inside service transaction
+          (res as any).json({ success: true, message: "Dispute resolved" });
+      } catch (e) { next(e); }
+  },
 
-        // 4. Log Transaction (Link to Payout)
-        await client.query(
-            `INSERT INTO wallet_transactions (provider_id, amount, type, reference_id, description)
-             VALUES ($1, $2, 'DEBIT', $3, 'Admin Payout Processed')`,
-            [providerId, amount, payoutId]
-        );
+  async getAuditLogs(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const result = await db.query(`
+            SELECT a.*, u.name as admin_name 
+            FROM admin_audit_logs a
+            JOIN users u ON u.id = a.admin_id
+            ORDER BY a.created_at DESC LIMIT 200
+        `);
+        (res as any).json(result.rows);
+    } catch (e) { next(e); }
+  },
 
-        // 5. Admin Log
-        await client.query(
-            `INSERT INTO admin_logs (admin_id, action, target_id) VALUES ($1, 'PROVIDER_PAYOUT', $2)`,
-            [adminId, providerId]
-        );
-
-        await client.query("COMMIT");
-        (res as any).json({ message: "Payout processed successfully", remaining_balance: currentBalance - amount });
-
-    } catch (error) {
-        await client.query("ROLLBACK");
-        next(error);
-    } finally {
-        client.release();
-    }
-};
-
-export const getSystemMetrics = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async getSystemMetrics(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const metrics = await Promise.all([
             db.query(`SELECT status, COUNT(*) FROM bookings GROUP BY status`),
             db.query(`SELECT approval_status as verification_status, COUNT(*) FROM providers GROUP BY approval_status`),
             db.query(`SELECT payment_status, COUNT(*) FROM payments GROUP BY payment_status`),
             db.query(`SELECT SUM(amount) as total_volume FROM payments WHERE payment_status='SUCCESS'`),
-            db.query(`SELECT COUNT(*) as high_cancel_clients FROM (SELECT client_id FROM bookings WHERE status='CANCELLED' GROUP BY client_id HAVING COUNT(*) > 3) as sub`),
-            db.query(`SELECT COUNT(*) as error_logs FROM admin_logs WHERE action LIKE '%ERROR%' OR action LIKE '%FAIL%'`)
+            db.query(`SELECT COUNT(*) as potential_fraud FROM (SELECT client_id FROM bookings WHERE status='CANCELLED' GROUP BY client_id HAVING COUNT(*) > 3) as sub`),
+            db.query(`SELECT COUNT(*) as error_logs FROM admin_audit_logs WHERE action_type LIKE '%ERROR%' OR action_type LIKE '%FAIL%'`)
         ]);
 
         (res as any).json({
@@ -232,18 +134,18 @@ export const getSystemMetrics = async (req: AuthRequest, res: Response, next: Ne
                 providers_by_status: metrics[1].rows,
                 payments_by_status: metrics[2].rows,
                 total_volume: Number(metrics[3].rows[0]?.total_volume || 0),
-                potential_fraud_clients: Number(metrics[4].rows[0]?.high_cancel_clients || 0),
+                potential_fraud_clients: Number(metrics[4].rows[0]?.potential_fraud || 0),
                 system_errors_last_24h: Number(metrics[5].rows[0]?.error_logs || 0)
             }
         });
     } catch (e) { next(e); }
-};
+  },
 
-export const getDashboardStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async getDashboardStats(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const [bookings, revenue, providers] = await Promise.all([
             db.query(`SELECT status, COUNT(*) FROM bookings GROUP BY status`),
-            db.query(`SELECT SUM(platform_fee) as total_revenue FROM bookings WHERE status='COMPLETED'`),
+            db.query(`SELECT SUM(platform_fee) as total_revenue FROM bookings WHERE status='COMPLETED' OR status='SETTLED'`),
             db.query(`SELECT approval_status as verification_status, COUNT(*) FROM providers GROUP BY approval_status`)
         ]);
 
@@ -253,12 +155,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response, next: N
             provider_stats: providers.rows
         });
     } catch (e) { next(e); }
-};
+  },
 
-export const getProvidersWithWallet = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async getProvidersWithWallet(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const result = await db.query(
-            `SELECT p.id, u.name, u.email, p.approval_status as verification_status, COALESCE(pw.balance, 0) as balance
+            `SELECT u.id, u.name, u.email, p.approval_status as verification_status, COALESCE(pw.balance, 0) as balance
              FROM providers p
              JOIN users u ON u.id = p.user_id
              LEFT JOIN provider_wallet pw ON pw.provider_id = u.id
@@ -266,9 +168,30 @@ export const getProvidersWithWallet = async (req: AuthRequest, res: Response, ne
         );
         (res as any).json(result.rows);
     } catch (e) { next(e); }
-};
+  },
 
-export const updateUserStatus = async (req: AuthRequest, res: Response, next: NextFunction) => { (res as any).sendStatus(200); };
-export const overrideBookingStatus = async (req: AuthRequest, res: Response, next: NextFunction) => { (res as any).sendStatus(200); };
-export const adminCancelBooking = async (req: AuthRequest, res: Response, next: NextFunction) => { (res as any).sendStatus(200); };
-export const triggerRefund = async (req: AuthRequest, res: Response, next: NextFunction) => { (res as any).sendStatus(200); };
+  async getSystemConfig(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const result = await db.query(`SELECT * FROM system_configs ORDER BY key`);
+        (res as any).json(result.rows);
+    } catch (e) { next(e); }
+  },
+
+  async updateSystemConfig(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const adminId = req.user!.id;
+        const { key, value } = (req as any).body;
+        
+        await db.query(
+            `INSERT INTO system_configs (key, value, updated_by) VALUES ($1, $2, $3)
+             ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW(), updated_by=$3`,
+            [key, value, adminId]
+        );
+        
+        // 🔒 PHASE 7 Audit
+        await AdminLogModel.log(adminId, 'UPDATE_CONFIG', 'CONFIG', adminId, { key, value });
+
+        (res as any).json({ message: "Config updated" });
+    } catch (e) { next(e); }
+  }
+};

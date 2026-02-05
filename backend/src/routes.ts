@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import authRoutes from "./modules/auth/auth.routes";
 import userRoutes from "./modules/users/user.routes";
@@ -12,10 +13,14 @@ import cancellationRoutes from "./modules/cancellations/cancellation.routes";
 import reviewRoutes from "./modules/reviews/review.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import disputeRoutes from "./modules/disputes/dispute.routes";
-import sitemapRoutes from "./routes/sitemap.route"; // Added
+import sitemapRoutes from "./routes/sitemap.route";
 import { publicController } from "./controllers/public.controller";
+import { healthController } from "./modules/health/health.controller";
 
 const router = Router();
+
+// 🏥 OBSERVABILITY (PHASE 9)
+router.get("/health", healthController.check);
 
 // 🗺️ PUBLIC SEO
 router.use("/sitemap.xml", sitemapRoutes);

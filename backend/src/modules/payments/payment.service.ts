@@ -13,7 +13,26 @@ const razorpay = new Razorpay({
 });
 
 export const paymentService = {
-  // 1️⃣ IDEMPOTENCY CHECK (Core safety)
+  // --- IDEMPOTENCY ENGINE (PHASE 5) ---
+  async getCachedResponse(key: string, userId: string) {
+    const res = await db.query(
+        `SELECT response_body, status_code FROM api_idempotency 
+         WHERE idempotency_key = $1 AND user_id = $2 AND expires_at > NOW()`,
+        [key, userId]
+    );
+    return res.rowCount > 0 ? res.rows[0] : null;
+  },
+
+  async saveIdempotency(key: string, userId: string, statusCode: number, body: any) {
+    await db.query(
+        `INSERT INTO api_idempotency (idempotency_key, user_id, status_code, response_body)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (idempotency_key) DO UPDATE SET response_body = EXCLUDED.response_body`,
+        [key, userId, statusCode, JSON.stringify(body)]
+    );
+  },
+
+  // 1️⃣ IDEMPOTENCY CHECK (Webhook safety)
   async isTransactionProcessed(txnId: string): Promise<boolean> {
     const res = await db.query(
         `SELECT id FROM webhook_events WHERE event_id LIKE $1 AND processed = true`,
@@ -25,14 +44,12 @@ export const paymentService = {
   // 2️⃣ ATOMIC VERIFICATION (Linked to Booking)
   async markPaymentVerified(bookingId: string, txnId: string, amount: number) {
     return db.transaction(async (client) => {
-        // Double Safety: Check if already verified in this transaction
         const already = await client.query(
             `SELECT id FROM payments WHERE gateway_payment_id = $1 AND verified = true`,
             [txnId]
         );
         if (already.rowCount > 0) return;
 
-        // Update Payment Record
         await client.query(
             `UPDATE payments 
              SET payment_status = 'SUCCESS', verified = true, gateway_payment_id = $1 
@@ -40,10 +57,8 @@ export const paymentService = {
             [txnId, bookingId]
         );
 
-        // Link Booking Status via Service (Hard Gate)
         await bookingService.updateStatus(bookingId, BookingStatus.CONFIRMED, 'SYSTEM', client);
 
-        // Ledger Entry
         await client.query(
             `INSERT INTO escrow_ledger (booking_id, amount, type, description)
              VALUES ($1, $2, 'DEPOSIT', $3)`,
@@ -59,7 +74,6 @@ export const paymentService = {
       throw { status: 400, message: "Booking is not in pending payment state" };
     }
 
-    // 🛡️ PAYMENT ABUSE GUARD (STEP 6.6)
     const existingPayment = await paymentRepository.getByBookingId(bookingId);
     if (existingPayment?.verified) {
         throw { status: 400, message: "This booking has already been paid and verified." };

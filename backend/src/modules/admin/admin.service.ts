@@ -1,3 +1,4 @@
+
 import { Response, NextFunction } from "express";
 import { db } from "../../config/db";
 import { AuthRequest } from "../../middlewares/auth.middleware";
@@ -22,7 +23,8 @@ export const adminService = {
       );
 
       // 2. Log Action
-      await AdminLogModel.log(adminId, 'FORCE_CANCEL_BOOKING', bookingId, { reason }, client);
+      // Fix: Added missing targetType 'BOOKING' as the 3rd argument
+      await AdminLogModel.log(adminId, 'FORCE_CANCEL_BOOKING', 'BOOKING', bookingId, { reason }, client);
 
       return booking;
     });
@@ -51,7 +53,8 @@ export const adminService = {
       await bookingService.updateStatus(bookingId, BookingStatus.REFUNDED, adminId, client, true);
 
       // 5. Audit
-      await AdminLogModel.log(adminId, 'FORCE_REFUND', bookingId, { amount, reason }, client);
+      // Fix: Added missing targetType 'PAYMENT' as the 3rd argument
+      await AdminLogModel.log(adminId, 'FORCE_REFUND', 'PAYMENT', bookingId, { amount, reason }, client);
 
       return { success: true, amount };
     });
@@ -66,7 +69,8 @@ export const adminService = {
             `UPDATE users SET verification_status='SUSPENDED' WHERE id=(SELECT user_id FROM providers WHERE id=$1)`,
             [providerId]
         );
-        await AdminLogModel.log(adminId, 'SUSPEND_PROVIDER', providerId, { reason }, client);
+        // Fix: Added missing targetType 'USER' as the 3rd argument
+        await AdminLogModel.log(adminId, 'SUSPEND_PROVIDER', 'USER', providerId, { reason }, client);
     });
   }
 };

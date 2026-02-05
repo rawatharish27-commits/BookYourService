@@ -4,7 +4,7 @@ import { getProvidersForPayout, payoutProvider } from '../../services/api';
 import { 
   DollarSign, UserCheck, Layers, ClipboardList, 
   LayoutDashboard, MessageSquare, Scale, Settings, ShieldCheck,
-  Users as UsersIcon, Calendar
+  Users as UsersIcon, Calendar, History
 } from 'lucide-react';
 import { StatusBadge } from '../../components/StatusBadge';
 
@@ -17,9 +17,10 @@ import { ReviewModeration } from './ReviewModeration';
 import { SystemConfig } from './SystemConfig';
 import { DisputeManager } from './DisputeManager';
 import { ProviderVerification } from './ProviderVerification';
+import { AuditLogs } from './AuditLogs';
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bookings' | 'categories' | 'verification' | 'payouts' | 'reviews' | 'config' | 'disputes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bookings' | 'categories' | 'verification' | 'payouts' | 'reviews' | 'config' | 'disputes' | 'audit'>('overview');
   const [providers, setProviders] = useState<ProviderStats[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +59,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'payouts', label: 'Payouts', icon: DollarSign },
     { id: 'reviews', label: 'Reviews', icon: MessageSquare },
     { id: 'categories', label: 'Catalog', icon: Layers },
+    { id: 'audit', label: 'Audit', icon: History },
     { id: 'config', label: 'System', icon: Settings },
   ];
 
@@ -94,6 +96,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'config' && <SystemConfig />}
             {activeTab === 'reviews' && <ReviewModeration />}
             {activeTab === 'categories' && <Categories />}
+            {activeTab === 'audit' && <AuditLogs />}
 
             {activeTab === 'payouts' && (
                 <div className="animate-in fade-in duration-500">

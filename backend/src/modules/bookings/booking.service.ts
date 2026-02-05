@@ -3,7 +3,7 @@ import { bookingRepository } from "./booking.repository";
 import { slotLockService } from "../availability/slotLock.service";
 import { availabilityService } from "../availability/availability.service";
 import { BookingStatus, assertTransition, FINAL_STATES } from "./booking.state";
-import { eventBus, EventTypes } from "../../events/eventBus";
+import { eventBus, EventTypes } from "../../events/eventBus"; // Path updated
 import { cancellationService } from "../cancellations/cancellation.service";
 import { logger } from "../../utils/logger";
 import { trustService } from "../reviews/trust.service";
@@ -43,12 +43,14 @@ export const bookingService = {
             await slotLockService.releaseByBookingId(bookingId);
         }
 
+        // 🧱 PHASE 4: Transaction-bound emission
+        await eventBus.emit(EventTypes.BOOKING_UPDATED, { id: bookingId, status: newStatus }, c);
+
         return { ...booking, status: newStatus };
     };
 
     const updatedBooking = client ? await exec(client) : await db.transaction(exec);
     
-    eventBus.emit(EventTypes.BOOKING_UPDATED, updatedBooking);
     return updatedBooking;
   },
 

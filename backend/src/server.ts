@@ -1,10 +1,11 @@
-
 import http from "http";
 import app from "./app";
 import { env } from "./config/env";
 import { db } from "./config/db";
 import { logger } from "./config/logger";
 import { initWebSocket } from "./ws/ws.server";
+import { eventWorker } from "./events/worker";
+import { paymentReconciliationJob } from "./jobs/paymentReconciliation.job"; // Added
 
 const server = http.createServer(app);
 
@@ -17,6 +18,10 @@ async function startServer() {
 
     await db.healthCheck();
     logger.info("Database connected");
+
+    // Start Workers (Phase 4 & 5)
+    eventWorker.start();
+    paymentReconciliationJob.start(); // Start Recon Job
 
     server.listen(env.PORT, () => {
       logger.info(`Server running on port ${env.PORT}`);
@@ -32,6 +37,8 @@ async function startServer() {
 
 async function shutdown() {
   logger.info("Shutting down server...");
+  eventWorker.stop();
+  paymentReconciliationJob.stop(); // Stop Recon gracefully
   server.close(async () => {
     await db.close();
     logger.info("Server closed gracefully");

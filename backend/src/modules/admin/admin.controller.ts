@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from "express";
 import { adminService } from "./admin.service";
 import { disputeService } from "./dispute.service";
@@ -151,6 +152,19 @@ export const adminController = {
   },
 
   // --- METRICS & CONFIG ---
+  // Fix: Added missing getAuditLogs method
+  async getAuditLogs(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const result = await db.query(`
+            SELECT a.*, u.name as admin_name 
+            FROM admin_audit_logs a
+            JOIN users u ON u.id = a.admin_id
+            ORDER BY a.created_at DESC LIMIT 200
+        `);
+        (res as any).json(result.rows);
+    } catch (e) { next(e); }
+  },
+
   async getSystemMetrics(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const metrics = await Promise.all([

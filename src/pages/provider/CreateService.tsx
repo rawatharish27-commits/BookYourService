@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createService, getCategories, getSubCategories, getZones, getTemplatesBySubCategory } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
+// Add PlusCircle to imports
+import { ArrowLeft, CheckCircle, AlertTriangle, ShieldAlert, PlusCircle } from 'lucide-react';
 import { Category, SubCategory, Zone, ServiceTemplate } from '../../types';
 
 export const CreateService: React.FC = () => {
@@ -27,6 +27,14 @@ export const CreateService: React.FC = () => {
 
   const [selectedTemplate, setSelectedTemplate] = useState<ServiceTemplate | null>(null);
 
+  // 🛡️ PHASE 6: KYC GATE
+  useEffect(() => {
+    if (user && user.verificationStatus !== 'LIVE') {
+        alert("You must be fully verified and 'LIVE' to create new service offers.");
+        navigate('/provider');
+    }
+  }, [user, navigate]);
+
   useEffect(() => {
     const init = async () => {
         const [cats, z] = await Promise.all([getCategories(), getZones()]);
@@ -42,7 +50,7 @@ export const CreateService: React.FC = () => {
   useEffect(() => {
     if (!formData.categoryId) return;
     const fetchSub = async () => {
-        const subs = await getSubCategories(Number(formData.categoryId)); // Note: ID type might need check if UUID
+        const subs = await getSubCategories(Number(formData.categoryId));
         setSubCategories(subs);
         if (subs.length > 0) {
             setFormData(prev => ({ ...prev, subCategoryId: String(subs[0].id) }));
@@ -99,22 +107,29 @@ export const CreateService: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <button onClick={() => navigate(-1)} className="mb-6 flex items-center text-gray-600 hover:text-gray-900">
-        <ArrowLeft className="w-4 h-4 mr-1" /> Back
+    <div className="max-w-2xl mx-auto pb-20 pt-10 px-4">
+      <button onClick={() => navigate(-1)} className="mb-6 flex items-center text-gray-500 hover:text-gray-900 font-bold transition-all group">
+        <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1" /> Back
       </button>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer a Service</h2>
-        <p className="text-gray-500 mb-6">Select from our standard catalog to start earning.</p>
+      <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-12">
+        <div className="flex items-center gap-4 mb-8">
+            <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600">
+                <PlusCircle className="w-8 h-8" />
+            </div>
+            <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Offer Service</h2>
+                <p className="text-gray-500 font-medium">Expand your professional portfolio.</p>
+            </div>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           
           {/* Zone */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Service Zone</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Service Location Zone</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-900 appearance-none shadow-inner"
               value={formData.zoneId}
               onChange={e => setFormData({...formData, zoneId: e.target.value})}
             >
@@ -122,12 +137,12 @@ export const CreateService: React.FC = () => {
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Category</label>
                 <select
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-900 appearance-none shadow-inner"
                   value={formData.categoryId}
                   onChange={e => setFormData({...formData, categoryId: e.target.value})}
                 >
@@ -137,9 +152,9 @@ export const CreateService: React.FC = () => {
 
               {/* SubCategory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Category</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Sub-Category</label>
                 <select
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-900 appearance-none shadow-inner"
                   value={formData.subCategoryId}
                   onChange={e => setFormData({...formData, subCategoryId: e.target.value})}
                   disabled={subCategories.length === 0}
@@ -151,9 +166,9 @@ export const CreateService: React.FC = () => {
 
           {/* Service Template Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Service Type</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Service Standard Type</label>
             <select
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-900 appearance-none shadow-inner"
                 value={formData.templateId}
                 onChange={e => setFormData({...formData, templateId: e.target.value})}
                 disabled={templates.length === 0}
@@ -162,45 +177,50 @@ export const CreateService: React.FC = () => {
                 {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             {selectedTemplate && (
-                <p className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded border border-gray-100">
-                    {selectedTemplate.description}
-                </p>
+                <div className="mt-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                    <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                        {selectedTemplate.description}
+                    </p>
+                </div>
             )}
           </div>
 
           {/* Price Override */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Your Price ($)</label>
-            <input
-              required
-              type="number"
-              min="0"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              value={formData.price}
-              onChange={e => setFormData({...formData, price: e.target.value})}
-            />
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Your Custom Pricing (₹)</label>
+            <div className="relative">
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  className="w-full pl-12 pr-6 py-5 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-gray-900 shadow-inner text-xl"
+                  value={formData.price}
+                  onChange={e => setFormData({...formData, price: e.target.value})}
+                />
+                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 font-bold">₹</span>
+            </div>
             {selectedTemplate && (
-                <div className="flex gap-4 mt-2 text-xs">
-                    <span className="text-gray-500">Base Price: <b>${selectedTemplate.base_price}</b></span>
-                    <span className="text-gray-500">Min: <b>${selectedTemplate.min_price}</b></span>
-                    <span className="text-gray-500">Max: <b>${selectedTemplate.max_price}</b></span>
+                <div className="flex gap-6 mt-4 px-2">
+                    <div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">Suggested</span><span className="text-sm font-black text-gray-700">₹{selectedTemplate.base_price}</span></div>
+                    <div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">Min Limit</span><span className="text-sm font-black text-gray-700">₹{selectedTemplate.min_price}</span></div>
+                    <div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">Max Limit</span><span className="text-sm font-black text-gray-700">₹{selectedTemplate.max_price}</span></div>
                 </div>
             )}
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-start gap-3">
-             <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-             <div className="text-sm text-blue-800">
-                 <p className="font-bold">Standard Catalog Enforcement</p>
-                 <p>You are selecting a standardized service. This ensures customers know exactly what they are booking. Your custom price will be shown to customers in your zone.</p>
+          <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-[2rem] flex items-start gap-4">
+             <CheckCircle className="w-6 h-6 text-indigo-600 mt-0.5 shrink-0" />
+             <div className="text-sm text-indigo-900 font-medium leading-relaxed">
+                 <p className="font-black uppercase text-[10px] tracking-widest mb-1">Marketplace Standard</p>
+                 <p>Selecting a catalog template ensures clients receive standardized service quality. Your custom price will be reviewed by admins.</p>
              </div>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            className="w-full bg-gray-900 hover:bg-indigo-600 text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-95 text-lg"
           >
-            Create Service Offer
+            Submit for Approval
           </button>
         </form>
       </div>

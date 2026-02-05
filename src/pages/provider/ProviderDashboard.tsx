@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Service, Role } from '../../types';
 import { getServices, updateServiceStatus, getWallet } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
-import { PlusCircle, Eye, EyeOff, Wallet, Calendar, TrendingUp, MessageSquare } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PlusCircle, Eye, EyeOff, Wallet, Calendar, TrendingUp, MessageSquare, ShieldAlert, Lock } from 'lucide-react';
 import { StatusBadge } from '../../components/StatusBadge';
 import TrustScore from '../../components/provider/TrustScore';
 import ReviewBreakdown from '../../components/provider/ReviewBreakdown';
@@ -14,8 +14,11 @@ export const ProviderDashboard: React.FC = () => {
   const [balance, setBalance] = useState(0);
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Mocked analytics for Phase 6
+  // Guard: Determine if provider is fully verified to operate
+  const isLive = user?.verificationStatus === 'LIVE';
+
   const ratingStats = [
     { star: 5, count: 42, total: 50 },
     { star: 4, count: 5, total: 50 },
@@ -51,6 +54,7 @@ export const ProviderDashboard: React.FC = () => {
   };
 
   const handleToggleStatus = async (service: Service) => {
+      if (!isLive) return; // Silent guard
       try {
         await updateServiceStatus(service.id, !service.isActive);
         fetchServices();
@@ -61,10 +65,33 @@ export const ProviderDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
+      
+      {/* 🛡️ PHASE 6: KYC / VERIFICATION BANNER */}
+      {!isLive && (
+          <div className="mb-10 bg-indigo-600 rounded-[2.5rem] p-8 md:p-12 text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top-4 duration-500">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+              <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center shrink-0 border border-white/20">
+                  <ShieldAlert className="w-10 h-10 text-white" />
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                  <h2 className="text-3xl font-black mb-2">Finish your verification</h2>
+                  <p className="text-indigo-100 font-medium opacity-90 max-w-xl">
+                      Your profile is currently <span className="font-black underline">{user?.verificationStatus?.replace('_', ' ')}</span>. You need to complete onboarding to accept jobs and go live in search.
+                  </p>
+              </div>
+              <button 
+                onClick={() => navigate('/provider/onboarding')}
+                className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-indigo-50 transition-all shadow-xl active:scale-95"
+              >
+                  Complete Onboarding
+              </button>
+          </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-gray-900 tracking-tight">Provider <span className="text-indigo-600">Insights</span></h2>
-          <TrustBadge score={85} />
+          <TrustBadge score={isLive ? 85 : 0} />
         </div>
         
         <div className="flex items-center gap-4">
@@ -77,19 +104,22 @@ export const ProviderDashboard: React.FC = () => {
                     <p className="text-xl font-black text-gray-900 leading-none">₹{balance}</p>
                 </div>
             </Link>
-            <Link
-                to="/provider/create-service"
-                className="bg-gray-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl hover:shadow-indigo-100"
+            
+            {/* Action Disabled if not Live */}
+            <button
+                disabled={!isLive}
+                onClick={() => navigate('/provider/create-service')}
+                className={`px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl ${isLive ? 'bg-gray-900 hover:bg-indigo-600 text-white hover:shadow-indigo-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
             >
                 <PlusCircle className="w-5 h-5" /> New Service
-            </Link>
+            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* ANALYTICS SECTION */}
           <div className="lg:col-span-4 space-y-6">
-              <TrustScore score={88} />
+              <TrustScore score={isLive ? 88 : 0} />
               
               <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
                   <div className="flex justify-between items-center mb-8">
@@ -98,17 +128,31 @@ export const ProviderDashboard: React.FC = () => {
                       </h3>
                       <Link to="/provider/reviews" className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View All</Link>
                   </div>
-                  <ReviewBreakdown stats={ratingStats} />
+                  <ReviewBreakdown stats={isLive ? ratingStats : ratingStats.map(s => ({...s, count: 0}))} />
                   <div className="mt-8 pt-6 border-t border-gray-50 text-center">
                       <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Global Rating</p>
-                      <p className="text-4xl font-black text-gray-900 mt-1">4.8</p>
+                      <p className="text-4xl font-black text-gray-900 mt-1">{isLive ? "4.8" : "0.0"}</p>
                   </div>
               </div>
           </div>
 
           {/* SERVICES LISTING */}
           <div className="lg:col-span-8">
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col">
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col relative">
+                
+                {/* 🛡️ OVERLAY FOR NON-LIVE PROVIDERS */}
+                {!isLive && (
+                    <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-[2px] flex items-center justify-center p-12 text-center">
+                        <div className="max-w-xs">
+                            <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                                <Lock className="w-8 h-8 text-white" />
+                            </div>
+                            <h4 className="text-lg font-black text-gray-900 mb-2">Catalog Locked</h4>
+                            <p className="text-sm text-gray-500 font-medium">Complete verification to manage your services and receive bookings.</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                     <h3 className="text-xl font-black text-gray-900 flex items-center gap-3">
                         <TrendingUp className="w-6 h-6 text-indigo-600" /> Catalog Manager
@@ -151,8 +195,9 @@ export const ProviderDashboard: React.FC = () => {
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <button 
+                                                disabled={!isLive}
                                                 onClick={() => handleToggleStatus(service)}
-                                                className={`p-2 rounded-xl transition-all ${service.isActive ? 'text-indigo-600 hover:bg-indigo-50' : 'text-gray-300 hover:text-gray-900'}`}
+                                                className={`p-2 rounded-xl transition-all ${!isLive ? 'opacity-30' : service.isActive ? 'text-indigo-600 hover:bg-indigo-50' : 'text-gray-300 hover:text-gray-900'}`}
                                             >
                                                 {service.isActive ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5"/>}
                                             </button>
@@ -168,7 +213,7 @@ export const ProviderDashboard: React.FC = () => {
                 </div>
 
                 <div className="p-6 bg-indigo-50/50 border-t border-indigo-50 text-center">
-                    <Link to="/provider/availability" className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline flex items-center justify-center gap-2">
+                    <Link to="/provider/availability" className={`text-xs font-black uppercase tracking-widest hover:underline flex items-center justify-center gap-2 ${isLive ? 'text-indigo-600' : 'text-gray-400 pointer-events-none'}`}>
                         <Calendar className="w-4 h-4" /> Update Schedule to receive jobs
                     </Link>
                 </div>

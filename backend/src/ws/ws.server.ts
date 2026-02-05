@@ -1,7 +1,5 @@
-
 import { WebSocketServer, WebSocket } from "ws";
 import jwt from "jsonwebtoken";
-import cookie from "cookie"; // You might need to add 'cookie' or parse manually. Using manual parse to avoid dep if simple.
 import { env } from "../config/env";
 import { eventBus, EventTypes } from "../events/eventBus";
 import { logger } from "../utils/logger";
@@ -11,64 +9,76 @@ type ClientMeta = {
   role: string;
 };
 
+// Internal registry of active secured connections
 const clients = new Map<WebSocket, ClientMeta>();
 
+/**
+ * 🔒 PHASE 3: SECURE WEBSOCKET SERVER
+ * Prevents unauthenticated upgrades and maps sockets to user identities.
+ */
 export function initWebSocket(server: any) {
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({ noServer: true });
 
-  wss.on("connection", (ws, req) => {
+  server.on('upgrade', (request: any, socket: any, head: any) => {
     try {
-      // 1. Extract Cookie
-      const rawCookies = req.headers.cookie;
-      if (!rawCookies) {
-          ws.close(1008, "No cookies");
-          return;
-      }
-
-      // Simple manual parsing to avoid adding 'cookie' package dependency for just this file
-      const parsedCookies = rawCookies.split(';').reduce((res, item) => {
-          const data = item.trim().split('=');
-          return { ...res, [data[0]]: data[1] };
-      }, {} as Record<string, string>);
-
-      const token = parsedCookies['access_token'];
-      if (!token) {
-          ws.close(1008, "Unauthorized");
-          return;
-      }
-
-      // 2. Verify Token
-      const payload: any = jwt.verify(token, env.JWT_SECRET);
-
-      clients.set(ws, {
-        userId: payload.id,
-        role: payload.role,
+      // 1. Extract and Parse HttpOnly Cookies
+      const rawCookies = request.headers.cookie || "";
+      const cookies: Record<string, string> = {};
+      rawCookies.split(';').forEach((cookie: string) => {
+        const parts = cookie.split('=');
+        if (parts.length === 2) {
+          cookies[parts[0].trim()] = parts[1].trim();
+        }
       });
 
-      // logger.info(`WS Connected: ${payload.id}`);
+      const token = cookies['access_token'];
+      
+      if (!token) {
+        logger.warn("WebSocket Upgrade Rejected: Missing Access Token");
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
 
-      ws.on("close", () => clients.delete(ws));
-      ws.on("error", () => clients.delete(ws));
-
+      // 2. Authoritative Verification
+      const payload: any = jwt.verify(token, env.JWT_SECRET);
+      
+      // 3. Permitted Upgrade
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request, payload);
+      });
     } catch (e) {
-      ws.close(1008, "Auth Failed");
+      logger.warn("WebSocket Auth Handshake Failed: Invalid Signature or Expired");
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
     }
   });
 
-  // 🔥 BROADCAST LOGIC
-  
-  // 1. Booking Created -> Notify Provider & Admin
-  eventBus.on(EventTypes.BOOKING_CREATED, (data) => {
-      broadcast(data, (meta) => {
-          return meta.userId === data.providerId || meta.role === 'ADMIN';
-      });
+  wss.on("connection", (ws, req, user: any) => {
+    // Successfully authenticated - map identity to socket
+    clients.set(ws, {
+      userId: user.id,
+      role: user.role,
+    });
+
+    logger.info(`WebSocket Secured Connection Established: User ${user.id} (${user.role})`);
+
+    ws.on("close", () => {
+      clients.delete(ws);
+      // Fixed: Property 'debug' does not exist on logger. Changed to info.
+      logger.info(`WebSocket Disconnected: User ${user.id}`);
+    });
+    
+    ws.on("error", () => clients.delete(ws));
   });
 
-  // 2. Booking Updated -> Notify Client, Provider & Admin
+  // 📡 BROADCAST ENGINE
+  // Listens to the internal EventBus and routes messages to authorized subscribers
   eventBus.on(EventTypes.BOOKING_UPDATED, (data) => {
       broadcast(data, (meta) => {
-          return meta.userId === data.clientId || 
-                 meta.userId === data.providerId || 
+          // Rule: Only the involved parties or an Admin should receive live updates for a specific booking
+          return meta.userId === data.client_id || 
+                 meta.userId === data.provider_id || 
                  meta.role === 'ADMIN';
       });
   });

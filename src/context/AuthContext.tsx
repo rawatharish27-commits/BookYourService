@@ -1,13 +1,12 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
-import { loginApi, registerApi, logoutApi, getMeApi } from '../services/api';
+import { User, Role } from '../types';
+import { loginApi, getMeApi, api } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  loading: boolean;
   login: (credentials: any) => Promise<void>;
-  register: (data: any) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -18,17 +17,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
+  /**
+   * 🛡️ PHASE 2 SECURITY: Trust Backend only
+   */
+  const verifySession = async () => {
       try {
           const res = await getMeApi();
-          // Map backend response to frontend User type if needed
           const userData: User = {
-              id: res.user.id,
-              name: res.user.name,
-              email: res.user.email,
-              role: res.user.role, // Ensure backend sends 'role' name
-              verificationStatus: res.user.verification_status,
-              adminLevel: res.user.admin_level
+              id: res.id,
+              name: res.name,
+              email: res.email,
+              role: res.role_id === 1 ? Role.ADMIN : res.role_id === 3 ? Role.PROVIDER : Role.CLIENT, 
+              verificationStatus: res.verification_status,
+              adminLevel: res.admin_level
           };
           setUser(userData);
       } catch (e) {
@@ -39,32 +40,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    fetchUser();
+    verifySession();
   }, []);
 
   const login = async (credentials: any) => {
-    await loginApi(credentials);
-    await fetchUser(); // Update state from HttpOnly cookie session
-  };
-
-  const register = async (data: any) => {
-      await registerApi(data);
+    setLoading(true);
+    try {
+        await loginApi(credentials);
+        await verifySession();
+    } catch (e) {
+        setLoading(false);
+        throw e;
+    }
   };
 
   const logout = async () => {
     try {
-        await logoutApi();
-    } catch(e) { console.error(e); }
+        await api.post('/api/auth/logout');
+    } catch(e) { console.error("Logout cleanup failed", e); }
+    
     setUser(null);
     window.location.href = '/#/login';
   };
 
-  if (loading) {
-      return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
-  }
-
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout, refreshUser: fetchUser }}>
+    <AuthContext.Provider value={{ 
+        user, 
+        isAuthenticated: !!user, 
+        loading, 
+        login, 
+        logout, 
+        refreshUser: verifySession 
+    }}>
       {children}
     </AuthContext.Provider>
   );
