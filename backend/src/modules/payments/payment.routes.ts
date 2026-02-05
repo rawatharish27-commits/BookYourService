@@ -1,16 +1,17 @@
-
 import { Router } from "express";
 import { paymentController } from "./payment.controller";
 import { authenticate } from "../../middlewares/auth.middleware";
 import { allowRoles } from "../../middlewares/role.middleware";
+import { enforceIdempotency } from "../../middlewares/idempotency.middleware";
 
 const router = Router();
 
-// Client: Create Order
+// Client: Create Order (Idempotency protected)
 router.post(
   "/create",
   authenticate,
   allowRoles("CLIENT"),
+  enforceIdempotency,
   paymentController.create
 );
 

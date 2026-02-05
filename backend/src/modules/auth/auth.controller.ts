@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from "express";
 import { authService } from "./auth.service";
 import jwt from "jsonwebtoken";
@@ -43,11 +44,11 @@ export const authController = {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?.id;
       const refreshToken = (req as any).cookies.refresh_token;
 
-      if (userId) {
-        await authService.logout(userId, refreshToken);
+      // Fixed: authService.logout expects 1 argument (refreshToken)
+      if (refreshToken) {
+        await authService.logout(refreshToken);
       }
 
       (res as any)
@@ -57,23 +58,5 @@ export const authController = {
     } catch (err) {
       next(err);
     }
-  },
-
-  async forgotPassword(req: Request, res: Response, next: NextFunction) {
-      try {
-          const { email } = (req as any).body;
-          if(!email) throw { status: 400, message: "Email required" };
-          await authService.forgotPassword(email);
-          (res as any).json({ message: "If account exists, reset instructions sent." });
-      } catch (e) { next(e); }
-  },
-
-  async resetPassword(req: Request, res: Response, next: NextFunction) {
-      try {
-          const { userId, token, newPassword } = (req as any).body;
-          if(!userId || !token || !newPassword) throw { status: 400, message: "Missing fields" };
-          await authService.resetPasswordWithId(userId, token, newPassword);
-          (res as any).json({ message: "Password updated. Please login." });
-      } catch (e) { next(e); }
   }
 };

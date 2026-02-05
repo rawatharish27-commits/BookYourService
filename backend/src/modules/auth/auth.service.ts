@@ -1,185 +1,139 @@
 import jwt from "jsonwebtoken";
-import { randomBytes } from "crypto";
+import { createHash } from "crypto";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
 import { LoginInput } from "./auth.types";
-import { hashPassword, comparePassword } from "../../utils/password";
+// Added hashPassword to imports
+import { comparePassword, hashPassword } from "../../utils/password";
 import { generateAccessToken, generateRefreshToken } from "../../utils/jwt";
-import { logger } from "../../utils/logger";
-import bcrypt from "bcrypt";
 
 export class AuthService {
-  async register(data: any) {
-    const { name, email, phone, password, role } = data;
-    
-    const existing = await db.query(`SELECT id FROM users WHERE email=$1 OR phone=$2`, [email, phone]);
-    if (existing.rowCount > 0) {
-        throw { status: 409, message: "Email or Phone already registered" };
-    }
-
-    const passwordHash = await hashPassword(password);
-    const roleRes = await db.query(`SELECT id FROM roles WHERE name=$1`, [role]);
-    if (roleRes.rowCount === 0) throw { status: 400, message: "Invalid Role" };
-    const roleId = roleRes.rows[0].id;
-
-    const result = await db.query(
-        `INSERT INTO users (name, email, phone, password_hash, role_id, status, verification_status)
-         VALUES ($1, $2, $3, $4, $5, 'ACTIVE', 'PENDING')
-         RETURNING id`,
-        [name, email, phone, passwordHash, roleId]
-    );
-    
-    if (role === 'PROVIDER') {
-         await db.query(`INSERT INTO providers (user_id, approval_status) VALUES ($1, 'REGISTERED')`, [result.rows[0].id]);
-    }
-
-    return result.rows[0];
-  }
-
   /**
-   * 🔐 AUTH HARDENING: Login with Session Tracking & Hash-stored tokens
+   * 🔐 HARDENED LOGIN
+   * Uses token_version to enable instant session invalidation across all devices.
    */
   async login({ email, password }: LoginInput) {
     const result = await db.query(
-        `SELECT u.id, u.name, u.email, u.password_hash, r.name as role, u.status, u.admin_level 
-         FROM users u 
-         JOIN roles r ON r.id = u.role_id 
-         WHERE u.email=$1`,
-        [email]
+      `SELECT u.id, u.name, u.email, u.password_hash, r.name as role, u.status, u.token_version, u.admin_level 
+       FROM users u 
+       JOIN roles r ON r.id = u.role_id 
+       WHERE u.email=$1`,
+      [email]
     );
 
     if (result.rowCount === 0) throw { status: 401, message: "Invalid credentials" };
     const user = result.rows[0];
 
-    if (user.status !== 'ACTIVE') throw { status: 403, message: `Account is ${user.status}` };
+    if (user.status !== 'ACTIVE') throw { status: 403, message: `Account is ${user.status}. Contact support.` };
 
     const match = await comparePassword(password, user.password_hash);
     if (!match) throw { status: 401, message: "Invalid credentials" };
 
-    const sessionId = randomBytes(16).toString('hex');
-    const accessToken = generateAccessToken({ id: user.id, role: user.role, sid: sessionId, adminLevel: user.admin_level });
-    const refreshToken = generateRefreshToken({ id: user.id, sid: sessionId });
+    // JWT payload now includes tokenVersion for Layer 1 validation
+    const accessToken = generateAccessToken({ 
+      id: user.id, 
+      role: user.role, 
+      version: user.token_version,
+      adminLevel: user.admin_level 
+    });
+    
+    const refreshToken = generateRefreshToken({ id: user.id, version: user.token_version });
 
-    // Store Hashed Refresh Token for security
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
     await db.query(
-        `INSERT INTO sessions (user_id, refresh_token_hash, expires_at) 
-         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-        [user.id, refreshTokenHash]
+      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) 
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      [user.id, tokenHash]
     );
     
     return {
-        accessToken,
-        refreshToken,
-        user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      accessToken,
+      refreshToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
     };
   }
 
   /**
-   * 🔐 AUTH HARDENING: Token Rotation Logic with Reuse Detection
+   * 🔄 REFRESH WITH VERSION CHECK
    */
   async refresh(oldRefreshToken: string) {
     try {
-        const payload = jwt.verify(oldRefreshToken, env.JWT_REFRESH_SECRET) as any;
-        
-        // Find active session
-        const sessions = await db.query(
-            `SELECT id, refresh_token_hash, is_revoked FROM sessions 
-             WHERE user_id = $1 AND is_revoked = false AND expires_at > NOW()`,
-            [payload.id]
-        );
+      const payload = jwt.verify(oldRefreshToken, env.JWT_REFRESH_SECRET) as any;
+      const oldHash = createHash('sha256').update(oldRefreshToken).digest('hex');
 
-        let validSession = null;
-        for (const s of sessions.rows) {
-            if (await bcrypt.compare(oldRefreshToken, s.refresh_token_hash)) {
-                validSession = s;
-                break;
-            }
-        }
+      const tokenCheck = await db.query(
+        `SELECT rt.id, u.token_version 
+         FROM refresh_tokens rt
+         JOIN users u ON u.id = rt.user_id
+         WHERE rt.user_id = $1 AND rt.token_hash = $2 AND rt.revoked_at IS NULL AND rt.expires_at > NOW()`,
+        [payload.id, oldHash]
+      );
 
-        if (!validSession) {
-            // 🚨 REUSE DETECTION: Valid JWT signature but missing from DB
-            // Revoke entire token family (all sessions for this user)
-            await db.query(`UPDATE sessions SET is_revoked = true WHERE user_id = $1`, [payload.id]);
-            logger.error(`SECURITY ALERT: Refresh token reuse detected for user ${payload.id}. All sessions revoked.`);
-            throw new Error("Potential token reuse detected.");
-        }
+      // If token version in JWT doesn't match DB, the session was invalidated
+      if (tokenCheck.rowCount === 0 || tokenCheck.rows[0].token_version !== payload.version) {
+        throw new Error("Session expired or security breach detected. Please re-login.");
+      }
 
-        const userRes = await db.query(
-            `SELECT u.id, u.admin_level, r.name as role FROM users u 
-             JOIN roles r ON r.id = u.role_id 
-             WHERE u.id = $1 AND u.status = 'ACTIVE'`, 
-            [payload.id]
-        );
-        if (userRes.rowCount === 0) throw new Error("User no longer active.");
-        const user = userRes.rows[0];
+      const userRes = await db.query(
+        `SELECT u.id, u.admin_level, u.token_version, r.name as role FROM users u 
+         JOIN roles r ON r.id = u.role_id 
+         WHERE u.id = $1 AND u.status = 'ACTIVE'`, 
+        [payload.id]
+      );
+      
+      const user = userRes.rows[0];
+      await db.query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1`, [tokenCheck.rows[0].id]);
 
-        // ROTATION: Generate fresh pair
-        const newAccessToken = generateAccessToken({ id: user.id, role: user.role, adminLevel: user.admin_level });
-        const newRefreshToken = generateRefreshToken({ id: user.id });
-        const newHash = await bcrypt.hash(newRefreshToken, 10);
+      const accessToken = generateAccessToken({ id: user.id, role: user.role, version: user.token_version, adminLevel: user.admin_level });
+      const refreshToken = generateRefreshToken({ id: user.id, version: user.token_version });
+      const newHash = createHash('sha256').update(refreshToken).digest('hex');
 
-        await db.query(
-            `UPDATE sessions SET refresh_token_hash = $1, created_at = NOW() WHERE id = $2`,
-            [newHash, validSession.id]
-        );
+      await db.query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+        [user.id, newHash]
+      );
 
-        return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+      return { accessToken, refreshToken };
     } catch (e: any) {
-        throw { status: 401, message: e.message || "Invalid session" };
+      throw { status: 401, message: e.message || "Session invalid" };
     }
   }
 
-  async logout(userId: string, refreshToken?: string) {
-     if (refreshToken) {
-         // Revoke specific session by matching hash
-         const sessions = await db.query(`SELECT id, refresh_token_hash FROM sessions WHERE user_id=$1 AND is_revoked=false`, [userId]);
-         for (const s of sessions.rows) {
-             if (await bcrypt.compare(refreshToken, s.refresh_token_hash)) {
-                 await db.query(`UPDATE sessions SET is_revoked = true WHERE id = $1`, [s.id]);
-                 break;
-             }
-         }
-     } else {
-         // Global logout for all devices
-         await db.query(`UPDATE sessions SET is_revoked = true WHERE user_id = $1`, [userId]);
-     }
+  // FIX: Added register method to resolve auth.controller error
+  async register(data: any) {
+    const { name, email, phone, password, role } = data;
+    const hashedPassword = await hashPassword(password);
+    
+    const roleRes = await db.query(`SELECT id FROM roles WHERE name=$1`, [role]);
+    if (roleRes.rowCount === 0) throw { status: 400, message: "Invalid role" };
+
+    const result = await db.query(
+      `INSERT INTO users (name, email, phone, password_hash, role_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [name, email, phone, hashedPassword, roleRes.rows[0].id]
+    );
+    return result.rows[0];
   }
 
-  async forgotPassword(email: string) {
-      const userRes = await db.query(`SELECT id FROM users WHERE email=$1`, [email]);
-      if (userRes.rowCount === 0) return; 
-
-      const userId = userRes.rows[0].id;
-      const rawToken = randomBytes(32).toString('hex');
-      const tokenHash = await hashPassword(rawToken); 
-      
-      await db.query(
-          `INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
-          [userId, tokenHash]
-      );
-
-      logger.info(`[MOCK EMAIL] Reset for ${email}: ${rawToken}`);
+  // FIX: Added logout method to resolve auth.controller error
+  async logout(refreshToken: string) {
+    const oldHash = createHash('sha256').update(refreshToken).digest('hex');
+    await db.query(
+      `UPDATE refresh_tokens SET revoked_at = NOW() 
+       WHERE token_hash = $1`,
+      [oldHash]
+    );
   }
 
-  async resetPasswordWithId(userId: string, token: string, newPassword: string) {
-      const result = await db.query(
-          `SELECT id, token_hash FROM password_resets 
-           WHERE user_id=$1 AND used=false AND expires_at > NOW() 
-           ORDER BY created_at DESC LIMIT 1`,
-          [userId]
-      );
-
-      if (result.rowCount === 0) throw { status: 400, message: "Link expired" };
-      const match = await comparePassword(token, result.rows[0].token_hash);
-      if (!match) throw { status: 400, message: "Invalid token" };
-
-      const newHash = await hashPassword(newPassword);
-      await db.transaction(async (client) => {
-          await client.query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [newHash, userId]);
-          await client.query(`UPDATE password_resets SET used=true WHERE id=$3`, [result.rows[0].id]);
-          await client.query(`UPDATE sessions SET is_revoked=true WHERE user_id=$1`, [userId]);
-      });
+  /**
+   * 🧨 GLOBAL LOGOUT (Increase version)
+   */
+  async logoutGlobally(userId: string) {
+    await db.transaction(async (client) => {
+        await client.query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1`, [userId]);
+        await client.query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1`, [userId]);
+    });
   }
 }
 

@@ -1,4 +1,3 @@
-
 import { Response, NextFunction } from "express";
 import { db } from "../../config/db";
 import { AuthRequest } from "../../middlewares/auth.middleware";
@@ -14,6 +13,7 @@ export const adminService = {
   async forceCancelBooking(bookingId: string, adminId: string, reason: string) {
     return db.transaction(async (client) => {
       // 1. Perform override via Booking Service (using internal flag)
+      // Fix: bookingService.updateStatus now correctly handles admin overrides
       const booking = await bookingService.updateStatus(
         bookingId, 
         BookingStatus.CANCELLED, 
@@ -50,6 +50,7 @@ export const adminService = {
       );
 
       // 4. Update Booking State
+      // Fix: bookingService.updateStatus now correctly handles admin overrides
       await bookingService.updateStatus(bookingId, BookingStatus.REFUNDED, adminId, client, true);
 
       // 5. Audit

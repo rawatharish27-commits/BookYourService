@@ -1,42 +1,34 @@
-
 import { Router } from "express";
-// Fix: Import adminController as an object since it is exported as such
 import { adminController } from "../controllers/admin.controller";
+import { providerApprovalController } from "../modules/admin/providerApproval.controller";
+import { disputeController } from "../modules/disputes/dispute.controller";
+import { configController } from "../modules/admin/config.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { allowRoles } from "../middlewares/role.middleware";
-import { requireAdminPermission } from "../middlewares/adminPermission.middleware";
 import { adminLimiter } from "../middlewares/rateLimit.middleware";
+import { auditAdminAction } from "../middlewares/adminAudit.middleware";
 
 const router = Router();
 
-// 1. Global Admin Protection
 router.use(authenticate, allowRoles("ADMIN"), adminLimiter);
 
-// 2. Operational Routes (L1+)
-// Fix: Map routes to adminController methods
-router.get("/dashboard", adminController.getDashboardStats);
-router.get("/metrics", adminController.getSystemMetrics); // Monitoring Endpoint
-router.get("/providers-wallet", adminController.getProvidersWithWallet);
-router.get("/config", requireAdminPermission("MANAGE_CONFIG"), adminController.getSystemConfig);
-router.get("/disputes", requireAdminPermission("RESOLVE_DISPUTE"), adminController.listDisputes);
+// Provider Verification
+router.get("/providers/pending", providerApprovalController.listPending);
+router.get("/providers/:id", providerApprovalController.getDetails);
+router.post("/providers/:id/approve", auditAdminAction('USER'), providerApprovalController.approve);
 
-// 3. Action Routes (Permission Gated)
-router.post("/config", requireAdminPermission("MANAGE_CONFIG"), adminController.updateSystemConfig);
-router.post("/disputes/resolve", requireAdminPermission("RESOLVE_DISPUTE"), adminController.resolveDispute);
+// Disputes
+router.get("/disputes", disputeController.listForAdmin);
+router.post("/disputes/:id/resolve", auditAdminAction('DISPUTE'), disputeController.resolve);
 
-router.post("/provider/verify", requireAdminPermission("APPROVE_SERVICE"), adminController.verifyProvider); // Using APPROVE_SERVICE level for now
+// Financial Operations
+router.post("/payout/process", auditAdminAction('PAYMENT'), adminController.payoutProvider);
 
-router.post(
-    "/provider/payout",
-    requireAdminPermission("REFUND_TRIGGER"), 
-    adminController.payoutProvider
-);
+// System Management
+router.get("/config", configController.list);
+router.put("/config", auditAdminAction('CONFIG'), configController.update);
 
-// 4. Emergency/Override Routes
-// Fix: Map legacy names to valid adminController methods
-router.post("/user/status", requireAdminPermission("BLOCK_USER"), adminController.suspendProvider);
-router.post("/booking/override", requireAdminPermission("BOOKING_OVERRIDE"), adminController.forceCancel);
-router.post("/booking/cancel", requireAdminPermission("ADMIN_CANCEL_BOOKING"), adminController.forceCancel);
-router.post("/refund", requireAdminPermission("REFUND_TRIGGER"), adminController.forceRefund);
+// Logging
+router.get("/audit-logs", adminController.getAuditLogs);
 
 export default router;

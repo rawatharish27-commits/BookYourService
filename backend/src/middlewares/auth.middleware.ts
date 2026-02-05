@@ -1,64 +1,52 @@
-
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
+import { db } from "../config/db";
 
 export interface AuthRequest extends Request {
   user?: {
       id: string;
       role: string;
-      sid?: string;
-      // Added adminLevel to satisfy permission checks in downstream middlewares
+      version: number;
       adminLevel?: string;
   };
 }
 
 /**
- * 🛡️ AUTH GATE: Access Token Validator
+ * 🛡️ AUTH GATE 2.0: Versioned Session Validator
  */
-export function authenticate(
+export async function authenticate(
   req: Request,
   _res: Response,
   next: NextFunction
 ) {
-  // Priority: Cookie -> Header
   const token = (req as any).cookies?.access_token || (req as any).headers.authorization?.split(" ")[1];
   
-  if (!token) {
-      return next({ status: 401, message: "Authentication required" });
-  }
+  if (!token) return next({ status: 401, message: "Auth required" });
 
   try {
     const payload = jwt.verify(token, env.JWT_SECRET) as any;
+
+    // LAYER 1: Verify version against DB (Prevents ghost sessions)
+    const userCheck = await db.query(`SELECT token_version, status FROM users WHERE id = $1`, [payload.id]);
+    
+    if (userCheck.rowCount === 0 || userCheck.rows[0].status !== 'ACTIVE') {
+        return next({ status: 403, message: "Account disabled" });
+    }
+
+    if (userCheck.rows[0].token_version !== payload.version) {
+        return next({ status: 401, message: "Session invalidated for security. Please login again." });
+    }
+
     (req as any).user = {
         id: payload.id,
         role: payload.role,
-        sid: payload.sid,
-        // Populate adminLevel from payload to enable RBAC/Level checks
+        version: payload.version,
         adminLevel: payload.adminLevel
     };
     next();
   } catch (err: any) {
-    if (err.name === 'TokenExpiredError') {
-        return next({ status: 401, message: "Token expired", code: 'TOKEN_EXPIRED' });
-    }
-    return next({ status: 401, message: "Invalid session" });
+    const msg = err.name === 'TokenExpiredError' ? "Session expired" : "Invalid session";
+    return next({ status: 401, message: msg });
   }
-}
-
-/**
- * 🔒 IDOR PROTECTION HELPERS
- */
-export function assertClientOwnsBooking(booking: any, userId: string) {
-    if (!booking) throw { status: 404, message: "Booking not found" };
-    if (booking.client_id !== userId) {
-        throw { status: 403, message: "IDOR Attempt: Resource ownership mismatch." };
-    }
-}
-
-export function assertProviderOwnsBooking(booking: any, providerId: string) {
-    if (!booking) throw { status: 404, message: "Booking not found" };
-    if (booking.provider_id !== providerId) {
-        throw { status: 403, message: "IDOR Attempt: Assigned provider mismatch." };
-    }
 }

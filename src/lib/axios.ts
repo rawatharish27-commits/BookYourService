@@ -1,37 +1,25 @@
 import axios from "axios";
 
-/**
- * API CONTRACT RULE:
- * All backend communication MUST flow through this instance.
- */
-
-// Defensive environment variable retrieval
-const getEnvVar = (key: string): string => {
-  try {
-    // Check for Vite/Build-time env
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-      return (import.meta as any).env[key] || "";
-    }
-    // Check for Node/Fallback env
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key] || "";
-    }
-  } catch (e) {
-    return "";
-  }
-  return "";
-};
-
-const BASE_URL = getEnvVar('VITE_API_URL') || "http://localhost:4000";
+const BASE_URL = "http://localhost:4000";
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // Required for HttpOnly Cookie Auth
-  timeout: 15000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json",
   },
+});
+
+api.interceptors.request.use((config) => {
+  // 🛡️ PHASE 4: IDEMPOTENCY INJECTION
+  const financialEndpoints = ['/api/v1/payments', '/api/v1/admin/provider/payout', '/api/v1/bookings'];
+  const isFinancial = financialEndpoints.some(endpoint => config.url?.startsWith(endpoint));
+  const isWrite = ['post', 'put', 'patch'].includes(config.method?.toLowerCase() || '');
+
+  if (isFinancial && isWrite && !config.headers['x-idempotency-key']) {
+    config.headers['x-idempotency-key'] = crypto.randomUUID();
+  }
+  return config;
 });
 
 let isRefreshing = false;
@@ -45,20 +33,16 @@ const processQueue = (error: any) => {
   failedQueue = [];
 };
 
-// Response Interceptor: Enforce Auth State & Graceful Error Handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // 1. Silent Refresh Cycle (401 Unauthorized)
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        })
-          .then(() => api(originalRequest))
-          .catch((err) => Promise.reject(err));
+        }).then(() => api(originalRequest)).catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
@@ -70,10 +54,9 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (err) {
         processQueue(err);
-        // Wipe local identity on refresh failure
         localStorage.removeItem("bys_user");
         if (!window.location.hash.includes("#/login")) {
-          window.location.href = "/#/login";
+          window.location.href = "/#/login"; 
         }
         return Promise.reject(err);
       } finally {
@@ -81,14 +64,9 @@ api.interceptors.response.use(
       }
     }
 
-    // 2. Global Contract Error Mapping
-    const message = error.response?.data?.message || error.response?.data?.error || "Network error. Please try again.";
-    
-    // Broadcast for UI Toasts
-    if (error.response?.status !== 401 && error.response?.status !== 404) {
-      window.dispatchEvent(
-        new CustomEvent("toast-error", { detail: { message } })
-      );
+    const errorMessage = error.response?.data?.message || error.message || "Something went wrong";
+    if (error.response?.status !== 401 && error.response?.status !== 403) {
+        window.dispatchEvent(new CustomEvent("toast-error", { detail: { message: errorMessage } }));
     }
 
     return Promise.reject(error);

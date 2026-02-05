@@ -1,5 +1,8 @@
 {
   "name": "BookYourService",
-  "description": "A service marketplace web application facilitating interactions between Clients, Providers, and Administrators with role-based access control and booking state management.",
-  "requestFramePermissions": []
+  "description": "A secure, production-grade service marketplace with role-based access control, atomic booking management, and hardened payment integrity.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
 }

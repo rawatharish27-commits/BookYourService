@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 import authRoutes from "./modules/auth/auth.routes";
 import userRoutes from "./modules/users/user.routes";
@@ -16,6 +15,7 @@ import disputeRoutes from "./modules/disputes/dispute.routes";
 import sitemapRoutes from "./routes/sitemap.route";
 import { publicController } from "./controllers/public.controller";
 import { healthController } from "./modules/health/health.controller";
+import { listServices } from "./controllers/service.controller";
 
 const router = Router();
 
@@ -39,6 +39,9 @@ router.use("/v1/cancellations", cancellationRoutes);
 router.use("/v1/reviews", reviewRoutes);
 router.use("/v1/admin", adminRoutes);
 router.use("/v1/disputes", disputeRoutes);
+
+// 🏎️ GLOBAL SEARCH (PHASE 6)
+router.get("/v1/search", listServices);
 
 router.get("/v1/public/stats", publicController.getPublicStats);
 
