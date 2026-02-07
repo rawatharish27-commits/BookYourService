@@ -203,7 +203,6 @@ export default function CategoryDetailPage() {
                             </Badge>
                           )}
                         </div>
-                        </div>
 
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                           {service.description}
