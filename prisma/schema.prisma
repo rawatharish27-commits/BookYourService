@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Production-grade schema for BookYourService platform
+// A service marketplace connecting clients with providers
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +10,422 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+enum UserRole {
+  CLIENT
+  PROVIDER
+  ADMIN
 }
 
-model Post {
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  DELETED
+}
+
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  passwordHash      String
+  name              String?
+  phone             String?
+  avatar            String?
+  role              UserRole    @default(CLIENT)
+  status            UserStatus  @default(ACTIVE)
+  emailVerified     Boolean     @default(false)
+  phoneVerified     Boolean     @default(false)
+  
+  // Provider-specific fields
+  businessName      String?
+  description       String?
+  experienceYears   Int?
+  verificationCode  String?
+  verifiedAt        DateTime?
+  trustScore        Float       @default(5.0)
+  totalReviews      Int         @default(0)
+  totalBookings     Int         @default(0)
+  totalEarnings     Float       @default(0)
+  
+  // Address
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  country           String     @default("India")
+  
+  // Timestamps
+  lastLoginAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  // Relations
+  services          Service[]
+  bookingsAsClient  Booking[]  @relation("ClientBookings")
+  bookingsAsProvider Booking[] @relation("ProviderBookings")
+  reviewsGiven      Review[]   @relation("ReviewsGiven")
+  reviewsReceived   Review[]   @relation("ReviewsReceived")
+  notifications     Notification[]
+  sessions          Session[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([city])
+}
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+}
+
+// ============================================
+// CATEGORIES & SERVICES
+// ============================================
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  REJECTED
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  icon        String?
+  image       String?
+  isActive    Boolean   @default(true)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  services    Service[]
+  subCategories SubCategory[]
+  
+  @@index([slug])
+  @@index([isActive])
+}
+
+model SubCategory {
+  id          String    @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean   @default(true)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  services    Service[]
+  
+  @@unique([categoryId, name])
+  @@index([categoryId])
+  @@index([slug])
+}
+
+model Service {
+  id               String        @id @default(cuid())
+  providerId       String
+  categoryId       String
+  subCategoryId    String?
+  
+  title            String
+  slug             String
+  description      String
+  
+  // Pricing
+  basePrice        Float
+  currency         String        @default("INR")
+  
+  // Duration & availability
+  durationMinutes  Int
+  isAvailable      Boolean       @default(true)
+  
+  // Location
+  location         String?
+  city             String?
+  
+  // Media
+  images           String        // JSON array of image URLs
+  
+  // Metadata
+  status           ServiceStatus @default(PENDING_APPROVAL)
+  featured         Boolean       @default(false)
+  verified         Boolean       @default(false)
+  
+  // Stats
+  totalBookings    Int           @default(0)
+  totalReviews     Int           @default(0)
+  averageRating    Float         @default(0)
+  
+  // Provider profile data snapshot
+  providerName     String?
+  providerAvatar   String?
+  providerRating   Float?
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  
+  provider         User          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category         Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory      SubCategory?  @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  bookings         Booking[]
+  reviews          Review[]
+  availabilitySlots AvailabilitySlot[]
+  
+  @@unique([providerId, slug])
+  @@index([providerId])
+  @@index([categoryId])
+  @@index([subCategoryId])
+  @@index([status])
+  @@index([featured])
+  @@index([city])
+}
+
+// ============================================
+// AVAILABILITY
+// ============================================
+
+enum DayOfWeek {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+model AvailabilitySlot {
+  id          String    @id @default(cuid())
+  serviceId   String
+  dayOfWeek   DayOfWeek
+  startTime   String    // HH:MM format
+  endTime     String    // HH:MM format
+  isActive    Boolean   @default(true)
+  
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  @@unique([serviceId, dayOfWeek, startTime])
+  @@index([serviceId])
+}
+
+model UnavailableDate {
+  id          String   @id @default(cuid())
+  serviceId   String
+  date        String   // YYYY-MM-DD format
+  reason      String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([serviceId, date])
+  @@index([serviceId])
+}
+
+// ============================================
+// BOOKINGS
+// ============================================
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+  FAILED
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  bookingNumber   String        @unique
+  
+  clientUserId    String
+  providerUserId  String
+  serviceId       String
+  
+  // Scheduling
+  scheduledDate   String        // YYYY-MM-DD format
+  scheduledTime   String        // HH:MM format
+  durationMinutes Int
+  
+  // Pricing
+  totalAmount     Float
+  currency        String        @default("INR")
+  platformFee     Float         @default(0)
+  
+  // Status
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Location
+  address         String?
+  city            String?
+  
+  // Notes
+  clientNotes     String?
+  providerNotes   String?
+  adminNotes      String?
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancellationReason String?
+  cancelledBy     String?       // userId
+  
+  // Completion
+  completedAt     DateTime?
+  
+  // Payment transaction IDs
+  paymentId       String?
+  refundId        String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  client          User          @relation("ClientBookings", fields: [clientUserId], references: [id], onDelete: Cascade)
+  provider        User          @relation("ProviderBookings", fields: [providerUserId], references: [id], onDelete: Cascade)
+  service         Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  review          Review?
+  
+  @@index([clientUserId])
+  @@index([providerUserId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([scheduledDate])
+  @@index([bookingNumber])
+}
+
+// ============================================
+// REVIEWS & RATINGS
+// ============================================
+
+model Review {
+  id          String   @id @default(cuid())
+  bookingId   String   @unique
+  serviceId   String
+  userId      String
+  providerId  String
+  
+  rating      Int      // 1-5
+  title       String?
+  comment     String?
+  
+  // Moderation
+  isApproved  Boolean  @default(false)
+  flagged     Boolean  @default(false)
+  moderationNote String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user        User     @relation("ReviewsGiven", fields: [userId], references: [id], onDelete: Cascade)
+  provider    User     @relation("ReviewsReceived", fields: [providerId], references: [id], onDelete: Cascade)
+  
+  @@index([serviceId])
+  @@index([userId])
+  @@index([providerId])
+  @@index([isApproved])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_ACCEPTED
+  BOOKING_REJECTED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  REVIEW_RECEIVED
+  ADMIN_ACTION
+  SYSTEM_UPDATE
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  link        String?
+  
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  
+  metadata    String?          // JSON for additional data
+  
+  createdAt   DateTime         @default(now())
+  
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ============================================
+// ADMIN & SETTINGS
+// ============================================
+
+model SystemConfig {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
+  key       String   @unique
+  value     String
+  category  String?
   updatedAt DateTime @updatedAt
+  
+  @@index([category])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String?
+  changes     String?  // JSON
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
 }

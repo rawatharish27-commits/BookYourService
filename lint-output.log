@@ -1,0 +1,8 @@
+$ eslint .
+
+/home/z/my-project/src/app/categories/[slug]/page.tsx
+  230:24  error  Parsing error: Expected corresponding JSX closing tag for 'CardContent'
+
+✖ 1 problem (1 error, 0 warnings)
+
+error: script "lint" exited with code 1
