@@ -95,12 +95,12 @@ export default function ContactPage() {
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
               <Mail className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Email Us</h3>
+            <h3 className="font-semibold mb-2">Email Support</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              support@bookyourservice.com
+              rawatharish27@gmail.com (Global Support)
             </p>
             <Button variant="outline" className="w-full" asChild>
-              <a href="mailto:support@bookyourservice.com">
+              <a href="mailto:rawatharish27@gmail.com">
                 Send Email
               </a>
             </Button>
@@ -114,10 +114,10 @@ export default function ContactPage() {
             </div>
             <h3 className="font-semibold mb-2">Call Us</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              +91 1800-123-4567
+              +91 8901172507 (Global Support)
             </p>
             <p className="text-xs text-muted-foreground">
-              Available 24/7
+              Available 24/7 - Global WhatsApp Support
             </p>
             <Button variant="outline" className="w-full">
               Call Now

@@ -20,6 +20,8 @@ import {
   Scale,
   DollarSign,
   Building2,
+  Globe,
+  TrendingUp,
 } from 'lucide-react';
 
 export default function Footer() {
@@ -36,11 +38,11 @@ export default function Footer() {
               </div>
               <div>
                 <span className="font-bold text-xl">BookYourService</span>
-                <p className="text-xs text-muted-foreground">India's #1 Service Marketplace</p>
+                <p className="text-xs text-muted-foreground">Global #1 Service Marketplace</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Connect with 10,000+ verified professionals across 500+ cities. Quality services, instant booking, and secure payments - all in one platform.
+              Connect with 100,000+ verified professionals across 2000+ cities globally. Quality services, instant booking, and secure payments - all in one platform.
             </p>
             <div className="flex items-center space-x-2 pt-2">
               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -121,6 +123,12 @@ export default function Footer() {
                 <Link href="/bookings" className="hover:text-primary transition-colors flex items-center">
                   <ChevronRight className="w-3 h-3 mr-1" />
                   My Bookings
+                </Link>
+              </li>
+              <li>
+                <Link href="/live-status" className="hover:text-primary transition-colors flex items-center">
+                  <Map className="w-3 h-3 mr-1" />
+                  Live Status
                 </Link>
               </li>
               <li>
@@ -223,49 +231,50 @@ export default function Footer() {
                 <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-medium">Email Support</p>
-                  <p className="text-xs">support@bookyourservice.com</p>
+                  <p className="text-xs">rawatharish27@gmail.com</p>
                 </div>
               </li>
               <li className="flex items-start space-x-2">
                 <Phone className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">24/7 Helpline</p>
-                  <p className="text-xs">+91 1800-123-4567 (Toll Free)</p>
+                  <p className="font-medium">24/7 Global Support</p>
+                  <p className="text-xs">+91 8901172507 (WhatsApp Available)</p>
                 </div>
               </li>
               <li className="flex items-start space-x-2">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">Headquarters</p>
+                  <p className="font-medium">Global Headquarters</p>
                   <p className="text-xs">123 Business Tower, Tech City, Bangalore, Karnataka - 560001</p>
+                  <p className="text-xs text-muted-foreground mt-1">With offices in 15+ countries</p>
                 </div>
               </li>
             </ul>
 
-            {/* Live Location Link */}
+            {/* Live Status Link */}
             <Link
-              href="/live-locations"
+              href="/live-status"
               className="flex items-center text-sm text-primary hover:underline mt-2"
             >
-              <Map className="w-4 h-4 mr-1" />
-              View Our Locations
+              <TrendingUp className="w-4 h-4 mr-1" />
+              Check Live System Status
             </Link>
 
             {/* Social Links */}
             <div className="flex space-x-3 pt-2">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
+              <a href="https://facebook.com/bookyourservice" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
+              <a href="https://twitter.com/bookyourservice" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
                 <Twitter className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
+              <a href="https://instagram.com/bookyourservice" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
+              <a href="https://linkedin.com/company/bookyourservice" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
+              <a href="https://youtube.com/@bookyourservice" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors hover:scale-110 transform">
                 <Youtube className="w-5 h-5" />
               </a>
             </div>
@@ -278,44 +287,45 @@ export default function Footer() {
             <Shield className="w-8 h-8 text-green-600" />
             <div>
               <p className="font-medium">100% Secure</p>
-              <p className="text-xs text-muted-foreground">SSL Encrypted</p>
+              <p className="text-xs text-muted-foreground">Bank-Grade Encryption</p>
             </div>
           </div>
           <div className="flex items-center space-x-3 text-sm">
             <Star className="w-8 h-8 text-yellow-500" />
             <div>
               <p className="font-medium">Verified Providers</p>
-              <p className="text-xs text-muted-foreground">Background Checked</p>
+              <p className="text-xs text-muted-foreground">100K+ Worldwide</p>
             </div>
           </div>
           <div className="flex items-center space-x-3 text-sm">
             <Map className="w-8 h-8 text-blue-600" />
             <div>
-              <p className="font-medium">500+ Cities</p>
-              <p className="text-xs text-muted-foreground">Pan India Coverage</p>
+              <p className="font-medium">2000+ Cities</p>
+              <p className="text-xs text-muted-foreground">Global Coverage</p>
             </div>
           </div>
           <div className="flex items-center space-x-3 text-sm">
-            <Users className="w-8 h-8 text-purple-600" />
+            <Globe className="w-8 h-8 text-purple-600" />
             <div>
-              <p className="font-medium">50K+ Happy Users</p>
-              <p className="text-xs text-muted-foreground">Growing Daily</p>
+              <p className="font-medium">50+ Countries</p>
+              <p className="text-xs text-muted-foreground">Worldwide Operations</p>
             </div>
           </div>
         </div>
 
         {/* Payment Methods */}
         <div className="mt-8 pt-6 border-t">
-          <p className="text-sm font-medium mb-3">Accepted Payment Methods</p>
+          <p className="text-sm font-medium mb-3">Accepted Payment Methods (Global)</p>
           <div className="flex flex-wrap gap-3 items-center text-xs text-muted-foreground">
-            <span className="bg-background px-3 py-2 rounded border">UPI</span>
+            <span className="bg-background px-3 py-2 rounded border">UPI (Global)</span>
             <span className="bg-background px-3 py-2 rounded border">Credit Card</span>
             <span className="bg-background px-3 py-2 rounded border">Debit Card</span>
             <span className="bg-background px-3 py-2 rounded border">Net Banking</span>
+            <span className="bg-background px-3 py-2 rounded border">PayPal</span>
+            <span className="bg-background px-3 py-2 rounded border">Stripe</span>
             <span className="bg-background px-3 py-2 rounded border">Wallet</span>
-            <span className="bg-background px-3 py-2 rounded border">Paytm</span>
-            <span className="bg-background px-3 py-2 rounded border">PhonePe</span>
             <span className="bg-background px-3 py-2 rounded border">Google Pay</span>
+            <span className="bg-background px-3 py-2 rounded border">Apple Pay</span>
             <span className="bg-background px-3 py-2 rounded border">Cash on Service</span>
           </div>
         </div>
@@ -323,8 +333,8 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
           <div className="text-center md:text-left space-y-1">
-            <p>&copy; {new Date().getFullYear()} BookYourService. All rights reserved.</p>
-            <p className="text-xs">Made with ❤️ in India | GSTIN: 29AAAAA0000A1Z5</p>
+            <p>&copy; {new Date().getFullYear()} BookYourService Global. All rights reserved.</p>
+            <p className="text-xs">Made with ❤️ in India | Available in 50+ Countries | GSTIN: 29AAAAA0000A1Z5</p>
           </div>
           <div className="flex flex-wrap justify-center gap-4 mt-4 md:mt-0">
             <Link href="/sitemap" className="hover:text-primary transition-colors">
@@ -341,6 +351,9 @@ export default function Footer() {
             </Link>
             <Link href="/cookie-policy" className="hover:text-primary transition-colors">
               Cookie Policy
+            </Link>
+            <Link href="/passive-income" className="hover:text-primary transition-colors">
+              Passive Income
             </Link>
           </div>
         </div>
