@@ -1,0 +1,33 @@
+{
+  "buildCommand": "bun run vercel-build",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "regions": ["hkg1", "sin1", "iad1"],
+  "env": {
+    "DATABASE_PROVIDER": "postgresql",
+    "NEXT_PUBLIC_APP_URL": {
+      "description": "Your Vercel app URL (e.g., https://bookyourservice.vercel.app)",
+      "value": ""
+    }
+  },
+  "build": {
+    "env": {
+      "DATABASE_URL": "@database-url",
+      "DATABASE_PROVIDER": "postgresql",
+      "SESSION_SECRET": "@session-secret"
+    }
+  },
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    }
+  ]
+}
