@@ -203,6 +203,88 @@ bun run dev
 
 ## 🚀 Production Deployment
 
+### Quick Deploy to Vercel with Neon (FREE!)
+
+**⚡ 5-Minute Deployment Guide:**
+
+```bash
+# 1. Get Neon Database URL
+# Go to: https://console.neon.tech/
+# Create free account → New Project → Copy connection string
+
+# 2. Deploy to Vercel
+# Push to GitHub (if not already done)
+git push origin master
+
+# 3. Connect to Vercel
+# Go to: https://vercel.com/dashboard
+# Add Project → Import from Git → Deploy!
+
+# 4. Add Environment Variables in Vercel
+DATABASE_URL=your-neon-connection-string
+DATABASE_PROVIDER=postgresql
+SESSION_SECRET=generate-random-string
+
+# That's it! Your app is live! 🎉
+```
+
+**📖 For detailed deployment guide, see: [DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+---
+
+## 🚀 Production Deployment
+
+### Environment Variables
+```env
+DATABASE_URL="file:./db/custom.db"
+NEXT_PUBLIC_APP_URL="https://yourdomain.com"
+```
+
+### Production Deployment - Free Options
+
+#### Option 1: Vercel + Neon (Recommended - FREE)
+✅ **Best for**: Production, small teams
+✅ **Cost**: $0/month
+✅ **Setup**: 5 minutes
+✅ **Features**:
+  - Automatic HTTPS & CDN
+  - PostgreSQL database (Neon Free Tier)
+  - 10 concurrent connections
+  - 3 GB storage
+  - Edge functions worldwide
+
+**Quick Steps:**
+1. Create Neon account: https://console.neon.tech/ (FREE)
+2. Create Vercel account: https://vercel.com/ (FREE)
+3. Push code to GitHub
+4. Connect Vercel to GitHub repository
+5. Add environment variables in Vercel Dashboard:
+   - `DATABASE_URL`: Your Neon connection string
+   - `DATABASE_PROVIDER`: `postgresql`
+   - `SESSION_SECRET`: Random 32+ char string
+6. Deploy!
+
+**📖 Full Guide:** See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete instructions
+
+#### Option 2: Railway + Neon (Alternative - FREE)
+✅ **Best for**: Development, testing
+✅ **Cost**: $5/month
+✅ **Features**: Postgres, Redis, Volumes
+
+#### Option 3: Render + PostgreSQL (Alternative - FREE)
+✅ **Best for**: Production, web apps
+✅ **Cost**: $0-$7/month
+✅ **Features**: Postgres, PostgreSQL, Databases
+
+### Build for Production
+```bash
+# Generate Prisma client
+bun run db:generate
+
+# Create production build
+bun run vercel-build
+```
+
 ### Environment Variables
 ```env
 DATABASE_URL="file:./db/custom.db"
