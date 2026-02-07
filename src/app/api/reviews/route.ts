@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth, requireAdmin } from '@/lib/api/auth';
 import { successResponse, notFoundResponse, badRequestResponse, unauthorizedResponse, forbiddenResponse, handleApiError } from '@/lib/api/response';
-import { sanitizeInput, isValidRating } from '@/lib/api/crypto';
+import { sanitizeInput, isValidRating } from '@/lib/api/validation';
 import { CreateReviewInput, ReviewFilters } from '@/lib/api/types';
 
 // GET all reviews with filtering
