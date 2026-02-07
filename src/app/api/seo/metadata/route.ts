@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // SEO metadata for dynamic pages
 export async function GET(request: NextRequest) {
@@ -11,15 +11,15 @@ export async function GET(request: NextRequest) {
       home: 'BookYourService - Professional Service Marketplace | सेवा और ऑया सेवा',
       categories: 'Categories - Browse 32+ Service Categories | श्रेणियाएं देखें',
       services: 'Services - Find Professional Services | व्यावसिकाएं खोजें',
-      serviceDetails: 'Service Details | सेवा विवरण',
+      serviceDetails: 'Service Details | सेवा विवरण चाँीच सेँहुत',
       booking: 'Book Service | सेवा बुक करें',
-      dashboard: 'Dashboard | डैशबोर्ड',
+      dashboard: 'Dashboard | डैशबोर्ड व और सामपर्थ',
       about: 'About Us | हमारे बारे में',
       contact: 'Contact | संपर्क करें',
       faq: 'FAQ | पूछे-जैज सवाल',
-      terms: 'Terms of Service | सेवा की शर्तें',
-      privacy: 'Privacy Policy | गोपनीयत नीति',
-      refund: 'Refund Policy | वापसी नीति',
+      terms: 'Terms of Service | सेवा की शर्त्याँरची',
+      privacy: 'Privacy Policy | गोपनी यत नीतिक',
+      refund: 'Refund Policy | रिफंद्ड नीतिक कर देख',
     },
     description: {
       home: 'BookYourService - India ka sabse bada service marketplace. 32+ service categories, 640+ subcategories aur 200+ services. Trusted providers, quality assurance aur 24/7 support.',
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         'India services, Mumbai services, Delhi services, Bangalore services',
       ],
       localized: {
-        hindi: 'ऑनलाइन सेवा, पेशेश्वासी, ब्यूज सेवा, गोधन, स्वच्छन, कपड़ पहनन, सफाई सफाई, संवाधन',
+        hindi: 'ऑनलाइन सेवा, पेशेश्वासी, ब्यूज सेवा, गोधन, संवांडाई से श्रेंगल से श्वाल बाया हारएं, गोपकड़ पहनन साल गा की श्र्तेणियाएं देखें',
         english: 'services, providers, booking, home repair, beauty, cleaning, education, events, pets',
       },
     },
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       site: '@bookyourservice',
       creator: '@bookyourservice',
       title: 'BookYourService - India ka Professional Service Marketplace',
-      description: 'Connect with trusted professionals for all your needs. 32+ categories, 640+ services.',
+      description: 'Connect with trusted professionals for all your needs. 32+ categories, 640+ services. Trusted providers, quality assurance aur 24/7 support.',
     },
     robots: {
       allow: true,
