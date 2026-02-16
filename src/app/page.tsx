@@ -23,7 +23,8 @@ import {
   AlertCircle, CheckCircle2, Menu, Home, FileText,
   MessageSquare, UserCheck, DollarSign, Flag,
   Eye, Sparkles, Award, Heart, Gift, Target,
-  Copy, Share2, TrendingUp, Wallet, Coins, Rocket
+  Copy, Share2, TrendingUp, Wallet, Coins, Rocket,
+  Ban, UserPlus, ThumbsUp, ThumbsDown, FileWarning
 } from 'lucide-react'
 import { 
   useAppStore, 
@@ -165,6 +166,15 @@ export default function Help2EarnApp() {
     flaggedUsers: 0, openProblems: 0, totalPayments: 0, totalRevenue: 0, pendingReports: 0
   })
   const [adminUsers, setAdminUsers] = useState<UserType[]>([])
+  const [adminReports, setAdminReports] = useState<any[]>([])
+  const [adminProblems, setAdminProblems] = useState<Problem[]>([])
+  const [adminTab, setAdminTab] = useState<'overview' | 'payments' | 'users' | 'reports' | 'problems'>('overview')
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
+  const [userActionDialog, setUserActionDialog] = useState(false)
+  const [reportActionDialog, setReportActionDialog] = useState(false)
+  const [selectedReport, setSelectedReport] = useState<any>(null)
+  const [adminNotes, setAdminNotes] = useState('')
   
   // Location State
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -199,6 +209,16 @@ export default function Help2EarnApp() {
       return matchesSearch && matchesType && matchesRisk
     })
   }, [problems, searchQuery, selectedType, selectedRisk])
+
+  // Filtered Admin Users
+  const filteredAdminUsers = useMemo(() => {
+    return adminUsers.filter(u => {
+      const matchesSearch = !userSearchQuery || 
+        u.phone.includes(userSearchQuery) ||
+        (u.name && u.name.toLowerCase().includes(userSearchQuery.toLowerCase()))
+      return matchesSearch
+    })
+  }, [adminUsers, userSearchQuery])
 
   // Rotate quotes
   useEffect(() => {
@@ -382,19 +402,98 @@ export default function Help2EarnApp() {
   const fetchAdminData = useCallback(async () => {
     if (!user?.isAdmin) return
     try {
-      const [statsRes, paymentsRes, usersRes] = await Promise.all([
+      const [statsRes, paymentsRes, usersRes, reportsRes, problemsRes] = await Promise.all([
         fetch(`/api/admin/stats?adminId=${user.id}`),
         fetch(`/api/admin/payments?adminId=${user.id}&status=PENDING`),
-        fetch(`/api/admin/users?adminId=${user.id}`)
+        fetch(`/api/admin/users?adminId=${user.id}`),
+        fetch(`/api/admin/reports?adminId=${user.id}&status=PENDING`),
+        fetch(`/api/admin/problems?adminId=${user.id}&status=OPEN`)
       ])
-      const [statsData, paymentsData, usersData] = await Promise.all([statsRes.json(), paymentsRes.json(), usersRes.json()])
+      const [statsData, paymentsData, usersData, reportsData, problemsData] = await Promise.all([
+        statsRes.json(), paymentsRes.json(), usersRes.json(), reportsRes.json(), problemsRes.json()
+      ])
       if (statsData.stats) setAdminStats(statsData.stats)
       if (paymentsData.payments) setPendingPayments(paymentsData.payments)
       if (usersData.users) setAdminUsers(usersData.users)
+      if (reportsData.reports) setAdminReports(reportsData.reports)
+      if (problemsData.problems) setAdminProblems(problemsData.problems)
     } catch {
       toast.error('Admin data load error')
     }
   }, [user])
+
+  const fetchAdminReports = useCallback(async () => {
+    if (!user?.isAdmin) return
+    try {
+      const res = await fetch(`/api/admin/reports?adminId=${user.id}&status=PENDING`)
+      const data = await res.json()
+      if (data.reports) setAdminReports(data.reports)
+    } catch {
+      toast.error('Reports load error')
+    }
+  }, [user])
+
+  const fetchAdminProblems = useCallback(async () => {
+    if (!user?.isAdmin) return
+    try {
+      const res = await fetch(`/api/admin/problems?adminId=${user.id}&status=OPEN`)
+      const data = await res.json()
+      if (data.problems) setAdminProblems(data.problems)
+    } catch {
+      toast.error('Problems load error')
+    }
+  }, [user])
+
+  const handleUserAction = async (targetUserId: string, action: string, value?: number) => {
+    if (!user?.isAdmin) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/users/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: user.id, targetUserId, action, value })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`User ${action} successful!`)
+        fetchAdminData()
+        setUserActionDialog(false)
+        setSelectedUser(null)
+      } else {
+        toast.error(data.error || 'Action failed')
+      }
+    } catch {
+      toast.error('Error!')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReportAction = async (reportId: string, action: 'penalize' | 'dismiss') => {
+    if (!user?.isAdmin) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/reports/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: user.id, reportId, action, adminNotes })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Report ${action} successful!`)
+        fetchAdminReports()
+        setReportActionDialog(false)
+        setSelectedReport(null)
+        setAdminNotes('')
+      } else {
+        toast.error(data.error || 'Action failed')
+      }
+    } catch {
+      toast.error('Error!')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const approvePayment = async (paymentId: string, action: 'approve' | 'reject') => {
     if (!user?.isAdmin) return
@@ -504,8 +603,8 @@ export default function Help2EarnApp() {
         <header className="p-4 border-b bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
           <div className="max-w-lg mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg animate-float">
-                <Image src="/logo.svg" alt="Help2Earn" width={48} height={48} />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg animate-float overflow-hidden">
+                <Image src="/logo.png" alt="Help2Earn" width={48} height={48} className="object-contain" />
               </div>
               <div>
                 <h1 className="text-xl font-bold gradient-text">Help2Earn</h1>
@@ -697,8 +796,8 @@ export default function Help2EarnApp() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b shadow-sm">
         <div className="max-w-6xl mx-auto px-3 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
-              <Wallet className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md overflow-hidden">
+              <Image src="/logo.png" alt="Help2Earn" width={40} height={40} className="object-contain" />
             </div>
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold gradient-text">Help2Earn</h1>
@@ -1385,88 +1484,391 @@ export default function Help2EarnApp() {
           {/* ADMIN TAB */}
           {user?.isAdmin && (
             <TabsContent value="admin" className="space-y-4 animate-fade-in">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card className="shadow-lg bg-gradient-to-br from-white to-blue-50">
-                  <CardContent className="pt-4 pb-3">
-                    <Users className="w-5 h-5 text-blue-500" />
-                    <p className="text-2xl font-bold mt-1">{adminStats.totalUsers}</p>
-                    <p className="text-xs text-gray-500">Total Users</p>
-                  </CardContent>
-                </Card>
-                <Card className="shadow-lg bg-gradient-to-br from-white to-green-50">
-                  <CardContent className="pt-4 pb-3">
-                    <UserCheck className="w-5 h-5 text-green-500" />
-                    <p className="text-2xl font-bold mt-1">{adminStats.activePaidUsers}</p>
-                    <p className="text-xs text-gray-500">Active Paid</p>
-                  </CardContent>
-                </Card>
-                <Card className="shadow-lg bg-gradient-to-br from-white to-amber-50">
-                  <CardContent className="pt-4 pb-3">
-                    <DollarSign className="w-5 h-5 text-amber-500" />
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(adminStats.totalRevenue)}</p>
-                    <p className="text-xs text-gray-500">Revenue</p>
-                  </CardContent>
-                </Card>
-                <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50">
-                  <CardContent className="pt-4 pb-3">
-                    <FileText className="w-5 h-5 text-purple-500" />
-                    <p className="text-2xl font-bold mt-1">{adminStats.todayProblems}</p>
-                    <p className="text-xs text-gray-500">Today Posts</p>
-                  </CardContent>
-                </Card>
+              {/* Admin Sub-navigation */}
+              <div className="flex gap-2 flex-wrap">
+                <Button 
+                  variant={adminTab === 'overview' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setAdminTab('overview')}
+                  className={adminTab === 'overview' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : ''}
+                >
+                  <TrendingUp className="w-4 h-4 mr-1" /> Overview
+                </Button>
+                <Button 
+                  variant={adminTab === 'payments' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setAdminTab('payments')}
+                  className={adminTab === 'payments' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : ''}
+                >
+                  <DollarSign className="w-4 h-4 mr-1" /> Payments
+                  {pendingPayments.length > 0 && (
+                    <Badge className="ml-1 bg-red-500 text-white text-xs">{pendingPayments.length}</Badge>
+                  )}
+                </Button>
+                <Button 
+                  variant={adminTab === 'users' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setAdminTab('users')}
+                  className={adminTab === 'users' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : ''}
+                >
+                  <Users className="w-4 h-4 mr-1" /> Users
+                </Button>
+                <Button 
+                  variant={adminTab === 'reports' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setAdminTab('reports')}
+                  className={adminTab === 'reports' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : ''}
+                >
+                  <Flag className="w-4 h-4 mr-1" /> Reports
+                  {adminReports.length > 0 && (
+                    <Badge className="ml-1 bg-red-500 text-white text-xs">{adminReports.length}</Badge>
+                  )}
+                </Button>
+                <Button 
+                  variant={adminTab === 'problems' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setAdminTab('problems')}
+                  className={adminTab === 'problems' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : ''}
+                >
+                  <FileWarning className="w-4 h-4 mr-1" /> Problems
+                </Button>
               </div>
 
-              <Card className="shadow-lg">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Pending Payments ({pendingPayments.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingPayments.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No pending payments</p>
-                  ) : (
-                    <ScrollArea className="h-[30vh]">
+              {/* OVERVIEW TAB */}
+              {adminTab === 'overview' && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Card className="shadow-lg bg-gradient-to-br from-white to-blue-50">
+                      <CardContent className="pt-4 pb-3">
+                        <Users className="w-5 h-5 text-blue-500" />
+                        <p className="text-2xl font-bold mt-1">{adminStats.totalUsers}</p>
+                        <p className="text-xs text-gray-500">Total Users</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="shadow-lg bg-gradient-to-br from-white to-green-50">
+                      <CardContent className="pt-4 pb-3">
+                        <UserCheck className="w-5 h-5 text-green-500" />
+                        <p className="text-2xl font-bold mt-1">{adminStats.activePaidUsers}</p>
+                        <p className="text-xs text-gray-500">Active Paid</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="shadow-lg bg-gradient-to-br from-white to-amber-50">
+                      <CardContent className="pt-4 pb-3">
+                        <DollarSign className="w-5 h-5 text-amber-500" />
+                        <p className="text-2xl font-bold mt-1">{formatCurrency(adminStats.totalRevenue)}</p>
+                        <p className="text-xs text-gray-500">Revenue</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="shadow-lg bg-gradient-to-br from-white to-purple-50">
+                      <CardContent className="pt-4 pb-3">
+                        <FileText className="w-5 h-5 text-purple-500" />
+                        <p className="text-2xl font-bold mt-1">{adminStats.todayProblems}</p>
+                        <p className="text-xs text-gray-500">Today Posts</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="shadow-lg">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-amber-500" />
+                          Pending Payments ({pendingPayments.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {pendingPayments.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No pending payments</p>
+                        ) : (
+                          <ScrollArea className="h-40">
+                            <div className="space-y-2 pr-2">
+                              {pendingPayments.slice(0, 5).map((payment) => (
+                                <div key={payment.id} className="flex justify-between items-center p-2 border rounded-lg bg-white shadow-sm">
+                                  <div>
+                                    <p className="font-medium text-sm">{payment.user?.phone}</p>
+                                    <p className="text-xs text-gray-500">{formatCurrency(payment.amount)}</p>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button size="sm" variant="outline" className="text-green-600 border-green-300 h-7 text-xs" onClick={() => approvePayment(payment.id, 'approve')}>✓</Button>
+                                    <Button size="sm" variant="outline" className="text-red-600 border-red-300 h-7 text-xs" onClick={() => approvePayment(payment.id, 'reject')}>✗</Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="shadow-lg">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Flag className="w-4 h-4 text-red-500" />
+                          Pending Reports ({adminReports.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {adminReports.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No pending reports</p>
+                        ) : (
+                          <ScrollArea className="h-40">
+                            <div className="space-y-2 pr-2">
+                              {adminReports.slice(0, 5).map((report) => (
+                                <div key={report.id} className="flex justify-between items-center p-2 border rounded-lg bg-white shadow-sm">
+                                  <div>
+                                    <p className="font-medium text-sm">{report.category}</p>
+                                    <p className="text-xs text-gray-500">{report.reason?.slice(0, 30)}...</p>
+                                  </div>
+                                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setSelectedReport(report); setReportActionDialog(true) }}>View</Button>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="shadow-lg">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-blue-500" />
+                        Quick Stats
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-red-50 rounded-xl">
+                          <p className="text-2xl font-bold text-red-600">{adminStats.flaggedUsers}</p>
+                          <p className="text-xs text-gray-500">Flagged Users</p>
+                        </div>
+                        <div className="text-center p-3 bg-yellow-50 rounded-xl">
+                          <p className="text-2xl font-bold text-yellow-600">{adminStats.openProblems}</p>
+                          <p className="text-xs text-gray-500">Open Problems</p>
+                        </div>
+                        <div className="text-center p-3 bg-green-50 rounded-xl">
+                          <p className="text-2xl font-bold text-green-600">{adminStats.totalPayments}</p>
+                          <p className="text-xs text-gray-500">Total Payments</p>
+                        </div>
+                        <div className="text-center p-3 bg-blue-50 rounded-xl">
+                          <p className="text-2xl font-bold text-blue-600">{adminStats.pendingReports}</p>
+                          <p className="text-xs text-gray-500">Pending Reports</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* PAYMENTS TAB */}
+              {adminTab === 'payments' && (
+                <Card className="shadow-lg">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-amber-500" />
+                      Pending Payments ({pendingPayments.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingPayments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-12 h-12 mx-auto text-green-300 mb-2" />
+                        <p className="text-gray-500">All payments processed!</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[50vh]">
+                        <div className="space-y-2 pr-2">
+                          {pendingPayments.map((payment) => (
+                            <div key={payment.id} className="flex justify-between items-center p-4 border rounded-xl bg-white shadow-sm">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                                  <IndianRupee className="w-6 h-6 text-amber-600" />
+                                </div>
+                                <div>
+                                  <p className="font-bold text-lg">{formatCurrency(payment.amount)}</p>
+                                  <p className="text-sm text-gray-500">{payment.user?.phone} • {payment.user?.name || 'No name'}</p>
+                                  <p className="text-xs text-gray-400">Trust: {payment.user?.trustScore} • {payment.user?.paymentActive ? 'Active' : 'Inactive'}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" className="bg-green-500 hover:bg-green-600" onClick={() => approvePayment(payment.id, 'approve')}>
+                                  <ThumbsUp className="w-4 h-4 mr-1" /> Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => approvePayment(payment.id, 'reject')}>
+                                  <ThumbsDown className="w-4 h-4 mr-1" /> Reject
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* USERS TAB */}
+              {adminTab === 'users' && (
+                <Card className="shadow-lg">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-500" />
+                      User Management ({adminStats.totalUsers})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search by phone or name..."
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="h-[50vh]">
                       <div className="space-y-2 pr-2">
-                        {pendingPayments.map((payment) => (
-                          <div key={payment.id} className="flex justify-between items-center p-3 border rounded-xl bg-white shadow-sm">
-                            <div>
-                              <p className="font-medium">{payment.user?.phone}</p>
-                              <p className="text-xs text-gray-500">{payment.user?.name} • Trust: {payment.user?.trustScore}</p>
+                        {filteredAdminUsers.map((u) => (
+                          <div key={u.id} className="flex justify-between items-center p-4 border rounded-xl bg-white shadow-sm">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${u.trustScore >= 70 ? 'bg-green-500' : u.trustScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                                {u.name?.[0] || u.phone.slice(-2)}
+                              </div>
+                              <div>
+                                <p className="font-medium">{u.name || 'No name'}</p>
+                                <p className="text-sm text-gray-500">{formatPhone(u.phone)}</p>
+                                <div className="flex gap-2 mt-1">
+                                  <Badge variant="outline" className={u.trustScore >= 70 ? 'text-green-500' : u.trustScore >= 40 ? 'text-yellow-600' : 'text-red-500'}>
+                                    Trust: {u.trustScore}
+                                  </Badge>
+                                  <Badge className={u.paymentActive ? 'bg-green-500' : 'bg-gray-400'}>
+                                    {u.paymentActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                  {u.isAdmin && <Badge className="bg-purple-500">Admin</Badge>}
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => approvePayment(payment.id, 'approve')}>✓ Approve</Button>
-                              <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => approvePayment(payment.id, 'reject')}>✗ Reject</Button>
-                            </div>
+                            <Button size="sm" variant="outline" onClick={() => { setSelectedUser(u); setUserActionDialog(true) }}>
+                              <Settings className="w-4 h-4 mr-1" /> Actions
+                            </Button>
                           </div>
                         ))}
                       </div>
                     </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
-              <Card className="shadow-lg">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">All Users ({adminStats.totalUsers})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[30vh]">
-                    <div className="space-y-2 pr-2">
-                      {adminUsers.map((u) => (
-                        <div key={u.id} className="flex justify-between items-center p-3 border rounded-xl bg-white shadow-sm">
-                          <div>
-                            <p className="font-medium">{u.phone}</p>
-                            <p className="text-xs text-gray-500">{u.name || 'No name'}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={u.trustScore >= 70 ? 'text-green-500' : u.trustScore >= 40 ? 'text-yellow-600' : 'text-red-500'}>{u.trustScore}</Badge>
-                            <Badge className={u.paymentActive ? 'bg-green-500' : 'bg-gray-400'}>{u.paymentActive ? 'Active' : 'Inactive'}</Badge>
-                          </div>
+              {/* REPORTS TAB */}
+              {adminTab === 'reports' && (
+                <Card className="shadow-lg">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Flag className="w-4 h-4 text-red-500" />
+                      Pending Reports ({adminReports.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {adminReports.length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-12 h-12 mx-auto text-green-300 mb-2" />
+                        <p className="text-gray-500">No pending reports!</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[50vh]">
+                        <div className="space-y-2 pr-2">
+                          {adminReports.map((report) => (
+                            <div key={report.id} className="p-4 border rounded-xl bg-white shadow-sm">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <Badge variant="outline" className="mb-2">{report.category}</Badge>
+                                  <p className="font-medium">{report.reason}</p>
+                                </div>
+                                <Badge className="bg-red-100 text-red-600">Pending</Badge>
+                              </div>
+                              <Separator className="my-3" />
+                              <div className="flex justify-between items-center">
+                                <div className="text-sm text-gray-500">
+                                  <p>Reporter: {report.reporter?.phone || 'Unknown'}</p>
+                                  <p>Reported: {report.reported?.phone || 'Unknown'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="destructive" onClick={() => { setSelectedReport(report); setReportActionDialog(true) }}>
+                                    <AlertTriangle className="w-4 h-4 mr-1" /> Action
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* PROBLEMS TAB */}
+              {adminTab === 'problems' && (
+                <Card className="shadow-lg">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileWarning className="w-4 h-4 text-orange-500" />
+                      Open Problems ({adminProblems.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {adminProblems.length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-12 h-12 mx-auto text-green-300 mb-2" />
+                        <p className="text-gray-500">No open problems!</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[50vh]">
+                        <div className="space-y-2 pr-2">
+                          {adminProblems.map((problem) => {
+                            const typeConfig = PROBLEM_CATEGORIES[problem.type]
+                            return (
+                              <div key={problem.id} className="p-4 border rounded-xl bg-white shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                    <div className="flex gap-2 mb-1">
+                                      <Badge className={`${typeConfig.bgColor} ${typeConfig.borderColor}`}>
+                                        {typeConfig.icon} {typeConfig.label}
+                                      </Badge>
+                                      <Badge variant="outline" className={
+                                        problem.riskLevel === 'HIGH' ? 'text-red-500 border-red-300' :
+                                        problem.riskLevel === 'MEDIUM' ? 'text-yellow-600 border-yellow-300' :
+                                        'text-green-500 border-green-300'
+                                      }>
+                                        {problem.riskLevel} Risk
+                                      </Badge>
+                                    </div>
+                                    <p className="font-bold">{problem.title}</p>
+                                    <p className="text-sm text-gray-600">{problem.description}</p>
+                                  </div>
+                                  {problem.offerPrice && (
+                                    <Badge className="bg-green-500 text-white">{formatCurrency(problem.offerPrice)}</Badge>
+                                  )}
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between items-center text-sm text-gray-500">
+                                  <div>
+                                    <p>Posted by: {formatPhone(problem.user.phone)} • Trust: {problem.user.trustScore}</p>
+                                    <p>Views: {problem.viewCount} • Calls: {problem.callCount}</p>
+                                  </div>
+                                  <Badge variant="outline">{problem.status}</Badge>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           )}
         </Tabs>
@@ -1624,6 +2026,150 @@ export default function Help2EarnApp() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFeedbackDialog(false)}>Cancel</Button>
             <Button onClick={() => selectedProblem && submitFeedback(selectedProblem.id, selectedProblem.userId)} disabled={helperReached === null || loading}>Submit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Action Dialog */}
+      <Dialog open={userActionDialog} onOpenChange={setUserActionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-blue-500" />
+              User Actions
+            </DialogTitle>
+            <DialogDescription>
+              Manage user: {selectedUser?.phone}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">{selectedUser.name || 'No name'}</span>
+                  <Badge className={selectedUser.paymentActive ? 'bg-green-500' : 'bg-gray-400'}>
+                    {selectedUser.paymentActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Trust: {selectedUser.trustScore}</Badge>
+                  {selectedUser.isAdmin && <Badge className="bg-purple-500">Admin</Badge>}
+                  {selectedUser.isFrozen && <Badge className="bg-blue-500">Frozen</Badge>}
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex flex-col"
+                  onClick={() => handleUserAction(selectedUser.id, selectedUser.isFrozen ? 'unfreeze' : 'freeze')}
+                  disabled={loading}
+                >
+                  <Ban className="w-5 h-5 mb-1" />
+                  {selectedUser.isFrozen ? 'Unfreeze' : 'Freeze'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex flex-col"
+                  onClick={() => handleUserAction(selectedUser.id, selectedUser.paymentActive ? 'deactivate' : 'activate')}
+                  disabled={loading}
+                >
+                  <UserCheck className="w-5 h-5 mb-1" />
+                  {selectedUser.paymentActive ? 'Deactivate' : 'Activate'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex flex-col text-green-600"
+                  onClick={() => handleUserAction(selectedUser.id, 'adjustTrust', 5)}
+                  disabled={loading}
+                >
+                  <ThumbsUp className="w-5 h-5 mb-1" />
+                  +5 Trust
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex flex-col text-red-600"
+                  onClick={() => handleUserAction(selectedUser.id, 'adjustTrust', -5)}
+                  disabled={loading}
+                >
+                  <ThumbsDown className="w-5 h-5 mb-1" />
+                  -5 Trust
+                </Button>
+              </div>
+              {!selectedUser.isAdmin && (
+                <Button 
+                  variant="outline" 
+                  className="w-full h-12 text-purple-600 border-purple-300"
+                  onClick={() => handleUserAction(selectedUser.id, 'makeAdmin')}
+                  disabled={loading}
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Make Admin
+                </Button>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserActionDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Action Dialog */}
+      <Dialog open={reportActionDialog} onOpenChange={setReportActionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Flag className="w-5 h-5" />
+              Report Action
+            </DialogTitle>
+            <DialogDescription>
+              Take action on this report
+            </DialogDescription>
+          </DialogHeader>
+          {selectedReport && (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 rounded-xl">
+                <Badge variant="outline" className="mb-2">{selectedReport.category}</Badge>
+                <p className="font-medium">{selectedReport.reason}</p>
+                <div className="mt-2 text-sm text-gray-500">
+                  <p>Reporter: {selectedReport.reporter?.phone || 'Unknown'}</p>
+                  <p>Reported User: {selectedReport.reported?.phone || 'Unknown'}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Admin Notes (Optional)</Label>
+                <Textarea 
+                  placeholder="Add notes about this action..."
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                />
+              </div>
+              <Separator />
+              <div className="flex gap-2">
+                <Button 
+                  variant="destructive" 
+                  className="flex-1"
+                  onClick={() => handleReportAction(selectedReport.id, 'penalize')}
+                  disabled={loading}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Penalize User
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => handleReportAction(selectedReport.id, 'dismiss')}
+                  disabled={loading}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReportActionDialog(false); setAdminNotes('') }}>Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
