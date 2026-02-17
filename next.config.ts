@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    turbo: false,
+  },
   output: "standalone",
   /* config options here */
   typescript: {

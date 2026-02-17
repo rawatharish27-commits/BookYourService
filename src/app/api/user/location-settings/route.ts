@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { authenticateRequest } from '@/lib/auth'
 import { locationPrivacyManager } from '@/lib/location-privacy'
 import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await authenticateRequest(request)
+    if (!auth?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const settings = await locationPrivacyManager.getPrivacySettings(session.user.id)
+    const settings = await locationPrivacyManager.getPrivacySettings(auth.user.id)
 
     return NextResponse.json({
       success: true,
@@ -27,15 +26,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await authenticateRequest(request)
+    if (!auth?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
     const { locationEnabled, foregroundOnly, shareWithHelpers, shareWithClients } = body
 
-    const updatedSettings = await locationPrivacyManager.updateSettings(session.user.id, {
+    const updatedSettings = await locationPrivacyManager.updateSettings(auth.user.id, {
       locationEnabled,
       foregroundOnly,
       shareWithHelpers,
@@ -56,12 +55,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await authenticateRequest(request)
+    if (!auth?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const success = await locationPrivacyManager.clearLocationData(session.user.id)
+    const success = await locationPrivacyManager.clearLocationData(auth.user.id)
 
     if (success) {
       return NextResponse.json({

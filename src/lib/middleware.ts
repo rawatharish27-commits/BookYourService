@@ -34,7 +34,7 @@ export async function authenticateRequest(request: NextRequest): Promise<{
 
     if (!payload || !payload.userId) {
       logger.warn('Invalid JWT token', {
-        path: new URL(request.url).pathname,
+        path: request.url ? new URL(request.url).pathname : 'unknown',
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       })
       return { user: null, response: null }
@@ -54,7 +54,7 @@ export async function authenticateRequest(request: NextRequest): Promise<{
     if (!user) {
       logger.warn('User not found for valid token', {
         userId: payload.userId,
-        path: new URL(request.url).pathname
+        path: request.url ? new URL(request.url).pathname : 'unknown'
       })
       return { user: null, response: null }
     }
@@ -62,7 +62,7 @@ export async function authenticateRequest(request: NextRequest): Promise<{
     if (user.isFrozen) {
       logger.warn('Frozen user attempted access', {
         userId: user.id,
-        path: new URL(request.url).pathname
+        path: request.url ? new URL(request.url).pathname : 'unknown'
       })
 
       const response = NextResponse.json(
@@ -93,7 +93,7 @@ export async function authenticateRequest(request: NextRequest): Promise<{
 
   } catch (error) {
     logger.error('Authentication middleware error', {
-      path: new URL(request.url).pathname,
+      path: request.url ? new URL(request.url).pathname : 'unknown',
       ip: request.headers.get('x-forwarded-for') || 'unknown',
       error: error instanceof Error ? {
         name: error.name,
@@ -147,7 +147,7 @@ export async function requireAdmin(request: NextRequest): Promise<{
   if (!user.isAdmin) {
     logger.warn('Non-admin user attempted admin access', {
       userId: user.id,
-      path: new URL(request.url).pathname
+      path: request.url ? new URL(request.url).pathname : 'unknown'
     })
 
     return {
@@ -221,11 +221,11 @@ export class ApiResponse {
 export function withLogging(handler: (request: NextRequest, context?: any) => Promise<NextResponse>) {
   return async (request: NextRequest, context?: any) => {
     const startTime = Date.now()
-    const url = new URL(request.url)
+    const url = request.url ? new URL(request.url) : null
 
     try {
       logger.info('API Request Started', {
-        path: url.pathname,
+        path: url ? url.pathname : 'unknown',
         method: request.method,
         ip: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown'
@@ -237,7 +237,7 @@ export function withLogging(handler: (request: NextRequest, context?: any) => Pr
       // Log successful response
       const statusCode = result?.status || 200
       logger.info('API Request Completed', {
-        path: url.pathname,
+        path: url ? url.pathname : 'unknown',
         method: request.method,
         statusCode,
         duration,
@@ -250,7 +250,7 @@ export function withLogging(handler: (request: NextRequest, context?: any) => Pr
       const duration = Date.now() - startTime
 
       logger.error('API Request Failed', {
-        path: url.pathname,
+        path: url ? url.pathname : 'unknown',
         method: request.method,
         duration,
         ip: request.headers.get('x-forwarded-for') || 'unknown',
@@ -279,7 +279,7 @@ export function withRateLimit(
     const rateLimitResponse = rateLimitFn(request)
     if (rateLimitResponse) {
       logger.warn('Rate limit exceeded', {
-        path: new URL(request.url).pathname,
+        path: request.url ? new URL(request.url).pathname : 'unknown',
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       })
       return rateLimitResponse
