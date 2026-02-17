@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins, Noto_Sans_Devanagari } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { swManager } from "@/lib/service-worker";
 
 const poppins = Poppins({
   variable: "--font-poppins",

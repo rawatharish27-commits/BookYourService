@@ -1,29 +1,33 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import type { User, Location, TrustLevel } from './types'
 
-export interface User {
-  id: string
-  phone: string
-  name: string | null
-  ageVerified: boolean
-  paymentActive: boolean
-  activeTill: string | null
-  trustScore: number
-  latitude: number | null
-  longitude: number | null
-  locationText: string | null
-  isAdmin: boolean
-  isFrozen: boolean
-  referralCode: string | null
-  referredBy: string | null
-  referralCount: number
-  totalHelpsGiven: number
-  totalHelpsTaken: number
-  notifyNewRequests: boolean
-  notifyPayments: boolean
-  notifyReports: boolean
-  createdAt: string
-  lastActiveAt: string | null
+// Custom storage with encryption for sensitive data
+const encryptedStorage = {
+  getItem: (name: string) => {
+    try {
+      const item = localStorage.getItem(name)
+      if (!item) return null
+
+      // In production, this should use proper encryption
+      // For now, we'll just store non-sensitive data
+      return JSON.parse(item)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      // In production, encrypt sensitive data
+      localStorage.setItem(name, value)
+    } catch {
+      // Handle storage quota exceeded
+      console.warn('Storage quota exceeded')
+    }
+  },
+  removeItem: (name: string) => {
+    localStorage.removeItem(name)
+  }
 }
 
 interface AppState {
@@ -31,62 +35,180 @@ interface AppState {
   isAuthenticated: boolean
   loading: boolean
   currentView: string
-  
+  error: string | null
+  lastSync: Date | null
+  theme: 'light' | 'dark' | 'system'
+
   // Actions
   setUser: (user: User | null) => void
   setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
   logout: () => void
   updateUserLocation: (lat: number, lng: number, locationText?: string) => void
   setCurrentView: (view: string) => void
   updateUserStats: (stats: Partial<User>) => void
+  syncWithServer: () => Promise<void>
+  validateState: () => boolean
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
+}
+
+// State validation functions
+const validateUser = (user: any): user is User => {
+  return (
+    user &&
+    typeof user.id === 'string' &&
+    typeof user.phone === 'string' &&
+    typeof user.trustScore === 'number' &&
+    typeof user.isAdmin === 'boolean'
+  )
+}
+
+const validateLocation = (lat: number, lng: number): boolean => {
+  return (
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    !isNaN(lat) && !isNaN(lng)
+  )
 }
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       loading: true,
       currentView: 'home',
-      
-      setUser: (user) => set({ 
-        user, 
-        isAuthenticated: !!user,
-        loading: false 
-      }),
-      
+      error: null,
+      lastSync: null,
+      theme: 'system',
+
+      setUser: (user) => {
+        if (user && !validateUser(user)) {
+          console.error('Invalid user data provided to setUser')
+          set({ error: 'Invalid user data' })
+          return
+        }
+        set({
+          user,
+          isAuthenticated: !!user,
+          loading: false,
+          error: null
+        })
+      },
+
       setLoading: (loading) => set({ loading }),
-      
-      logout: () => set({ 
-        user: null, 
+
+      setError: (error) => set({ error }),
+
+      logout: () => set({
+        user: null,
         isAuthenticated: false,
         loading: false,
-        currentView: 'home'
+        currentView: 'home',
+        error: null,
+        lastSync: null
       }),
-      
-      updateUserLocation: (lat, lng, locationText) => set((state) => ({
-        user: state.user ? {
-          ...state.user,
-          latitude: lat,
-          longitude: lng,
-          locationText: locationText || state.user.locationText
-        } : null
-      })),
+
+      updateUserLocation: (lat, lng, locationText) => {
+        if (!validateLocation(lat, lng)) {
+          console.error('Invalid location coordinates')
+          set({ error: 'Invalid location coordinates' })
+          return
+        }
+
+        set((state) => ({
+          user: state.user ? {
+            ...state.user,
+            latitude: lat,
+            longitude: lng,
+            locationText: locationText || state.user.locationText
+          } : null,
+          error: null
+        }))
+      },
 
       setCurrentView: (view) => set({ currentView: view }),
-      
+
       updateUserStats: (stats) => set((state) => ({
         user: state.user ? {
           ...state.user,
           ...stats
-        } : null
-      }))
+        } : null,
+        error: null
+      })),
+
+      syncWithServer: async () => {
+        const state = get()
+        if (!state.user) return
+
+        try {
+          set({ loading: true, error: null })
+
+          // Sync user data with server
+          const response = await fetch('/api/auth/me')
+          if (response.ok) {
+            const userData = await response.json()
+            if (validateUser(userData)) {
+              set({
+                user: userData,
+                lastSync: new Date(),
+                error: null
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Sync failed:', error)
+          set({ error: 'Failed to sync with server' })
+        } finally {
+          set({ loading: false })
+        }
+      },
+
+      validateState: () => {
+        const state = get()
+        const isValid =
+          (state.user === null || validateUser(state.user)) &&
+          typeof state.isAuthenticated === 'boolean' &&
+          typeof state.loading === 'boolean' &&
+          typeof state.currentView === 'string' &&
+          (state.error === null || typeof state.error === 'string')
+
+        if (!isValid) {
+          console.error('Invalid store state detected')
+          set({ error: 'Invalid store state' })
+        }
+
+        return isValid
+      },
+
+      setTheme: (theme) => {
+        set({ theme })
+
+        // Apply theme to document
+        const root = document.documentElement
+        if (theme === 'dark') {
+          root.classList.add('dark')
+        } else if (theme === 'light') {
+          root.classList.remove('dark')
+        } else {
+          // System preference
+          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          if (systemTheme === 'dark') {
+            root.classList.add('dark')
+          } else {
+            root.classList.remove('dark')
+          }
+        }
+      }
     }),
     {
       name: 'help2earn-storage',
+      storage: createJSONStorage(() => encryptedStorage),
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
+        // Don't persist user data for security - authentication is cookie-based
+        currentView: state.currentView,
+        lastSync: state.lastSync,
+        theme: state.theme
       })
     }
   )
